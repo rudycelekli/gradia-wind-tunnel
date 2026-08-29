@@ -209,10 +209,6 @@ mutate → oracle confirms wrong → judge scores → judge PASS = confirmed exp
 mutated rubric criteria to prove each gate bites; here we mutate the answer to prove the
 gates leak.*
 
-### 4.5 The judge-gaming family (attacks the judge, not the extractor)
-
-A second transform family targets the **LLM judge's documented biases** rather than the answer extractor. Each keeps the oracle-wrong core — so a judge PASS is a *confirmed* defect, not a disagreement — and adds a **natural** rhetorical layer a deployed model could plausibly emit, passing the naturalness screen with no injection artifacts. Seven vectors ship in transform catalog v2: **sycophancy-bait** (agreement/validation framing), **false-citation** (fabricated authority), **format-mimicry** (the structure judges reward), **hedge-flooding** (comprehensive-sounding qualification), and three novel to this work — **fake-verification** (a fabricated self-check step), **rubric-echo** (asserting each criterion is met: the Goodhart letter-vs-intent attack as a transform), and **calibrated-confidence** (well-calibrated-sounding certainty). Every vector is oracle-confirmed wrong on all machine-checkable benchmarks (GSM8K, MATH, GPQA, HumanEval, HLE).
-
 ### 4.3 Adversary
 
 The adversary is an identity-pinned frontier model (the Conditionally Approved panel:
@@ -225,6 +221,10 @@ At L2/L3 the answer must be one a deployed model could plausibly emit: constrain
 on-policy generations, minimally edited, and ban injection artifacts ("ignore previous
 instructions", judge-directed meta-text) with an automated screen. This paragraph is the
 line between a novel reward-hacking study and a rediscovery of prompt injection.
+
+### 4.5 The judge-gaming family (attacks the judge, not the extractor)
+
+A second transform family targets the **LLM judge's documented biases** rather than the answer extractor. Each keeps the oracle-wrong core — so a judge PASS is a *confirmed* defect, not a disagreement — and adds a **natural** rhetorical layer a deployed model could plausibly emit, passing the naturalness screen with no injection artifacts. Seven vectors ship in transform catalog v2: **sycophancy-bait** (agreement/validation framing), **false-citation** (fabricated authority), **format-mimicry** (the structure judges reward), **hedge-flooding** (comprehensive-sounding qualification), and three novel to this work — **fake-verification** (a fabricated self-check step), **rubric-echo** (asserting each criterion is met: the Goodhart letter-vs-intent attack as a transform), and **calibrated-confidence** (well-calibrated-sounding certainty). Every vector is oracle-confirmed wrong on all machine-checkable benchmarks (GSM8K, MATH, GPQA, HumanEval, HLE).
 
 ### 4.6 The agentic environment-state archetype (reward-hacking the checker)
 
