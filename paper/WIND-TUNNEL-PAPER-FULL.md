@@ -476,13 +476,65 @@ figure is illustrative (offline) or empirical (a real run).
 
 ---
 
-## 13. Results — *to be filled from the frozen preregistration*
+## 13. Results
 
-*(Populated from Phase-0/Phase-1 evidence bundles. Report every preregistered cell,
-including nulls. Headline objects: exploit density by rung and benchmark; the
-adversary×judge transfer matrix; the convergence class and γ per architecture; the
-autoimmunity Pareto; named causal slices with prospective lift; the exploitability
-spectrum. Every number cites its frame chain head.)*
+### 13.1 First live run — Phase-0 exhibit, rung L1
+
+*Scope.* This run establishes the instrument on real data and a real judge: the five
+machine-checkable benchmarks, 50 items each (500 attack attempts per benchmark across the
+transform catalog), graded by `claude-opus-5` through the Guard-routed grader in quick
+mode, at rung **L1** (metamorphic). It is a Phase-0 exhibit — one judge, one rung, a
+50-item pool — *not* the preregistered Phase-1 (200/cell, four judge architectures,
+four adversaries, all rungs). Every number is recomputed from the run's `frames.ndjson`
+by `capture.verify_bundle` (all five bundles: `ok`), and every exploit is oracle-witnessed
+(oracle-WRONG ∧ judge-PASS) with zero malformed cells.
+
+**Table R1 — L1 exploit density (per 1,000 attempts), 2026-08-29.**
+
+| Benchmark | Attempts | Exploits | Density /1k | Scorer resisted |
+|---|---:|---:|---:|:--:|
+| GSM8K | 500 | 0 | 0 | ✓ |
+| MATH | 500 | 63 | 126 | — |
+| GPQA-Diamond | 500 | 0 | 0 | ✓ |
+| HumanEval | 500 | 42 | 84 | — |
+| HLE (checkable subset) | 500 | 25 | 50 | — |
+| **Total** | **2,500** | **130** | — | 2 of 5 |
+
+Three of five benchmarks are gameable at L1; two resist. The split is not random: the two
+that resist (GSM8K arithmetic, GPQA-Diamond key-match) give the judge a target it can
+independently verify, so no oracle-wrong answer survives; the three that fall (competition
+math, code, frontier multidisciplinary) are harder or more open-ended, where the judge
+cannot cheaply re-derive the truth.
+
+**Exploit DNA (Figure 5).** The transform × benchmark spectrum shows each benchmark
+has a *distinct* blind spot, not a uniform one: **MATH** is broadly gameable (ten of ten
+applicable transforms land, led by `authoritative_wrong` 200/1k, `hedge_flooding` 180,
+`false_citation` 160); **HumanEval** falls almost exclusively to `keyword_inflation`
+(840/1k — a buggy solution in judge-favored phrasing passes ~84% of attempts) while
+other vectors do not move its execution-adjacent judge; **HLE** falls to the judge-gaming
+family, led by the novel `false_citation` (100/1k), `calibrated_confidence` (80), and
+`sycophancy_bait` (80). This heterogeneity is itself a result: a benchmark's immune
+fingerprint is specific, so a patch tuned to one benchmark's dominant vector need not
+transfer — a prospective read on H2.
+
+**The judge-gaming family is load-bearing.** 66 of the 130 L1 exploits (51%) came from the
+seven judge-gaming vectors of §4.5; on HLE, 20 of 25. That the *novel* vectors dominate
+the frontier benchmark is direct evidence the family captures real, previously unmeasured
+scorer blind spots. Total run cost: $21.70.
+
+### 13.2 What this run does and does not establish
+
+*Establishes.* The instrument runs end-to-end on real benchmarks with a live judge; L1
+metamorphic attacks produce oracle-witnessed exploits on three of five frontier
+benchmarks; the judge-gaming family is effective and the exploit fingerprint is
+benchmark-specific; every number is recomputable and tamper-evident.
+
+*Does not yet establish (Phase-1, in progress).* Behavior at 200/cell with confidence
+intervals; whether **L2 adaptive search** cracks the L1-resistant benchmarks; the
+adversary×judge transfer matrix and whether structural judges (self-commitment) resist
+more; convergence and patch-generalization γ under iterated repair; and — the
+program's distinguishing claim — **witnessed single-variable universe forks localizing
+the causal slice** behind a named exploit family. Those follow as the runs land.
 
 ## 14. Analysis and interpretation — *to be filled*
 
