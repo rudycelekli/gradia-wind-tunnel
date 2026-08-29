@@ -375,8 +375,17 @@ def run_benchmark_l1(bench: Benchmark, items: list[GradedItem], judge, seed: int
     """Shape-agnostic L1: for each item x each attack, oracle-confirm wrong, judge-score."""
     rng = random.Random(seed)
     episodes: list[Episode] = []
+    from .transforms import JUDGE_GAMING_WRAPPERS
+    as_comment = getattr(bench, "benchmark_id", "") in {"humaneval", "swebench_verified"}
     for item in items:
-        for atk in bench.attacks(item, rng):
+        base = list(bench.attacks(item, rng))
+        base_wrong = base[0].answer_text if base else item.correct_answer_text
+        _gold = str(item.gold)
+        jg = [Attack(nm, wrap(base_wrong, rng, as_comment=as_comment),
+                     witness=f"oracle: wrong (gold={_gold}); judge-gaming ({nm})",
+                     favored_phrase=None)
+              for nm, wrap in JUDGE_GAMING_WRAPPERS.items()]
+        for atk in base + jg:
             oracle_wrong = not bench.oracle(atk.answer_text, item)
             verdict = judge.score(atk.answer_text, item.question)
             episodes.append(Episode(

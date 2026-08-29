@@ -16,7 +16,7 @@ SCHEMA_PREREGISTRATION = "gradia-wind-tunnel-preregistration.v1"
 SCHEMA_EPISODE = "gradia-wind-tunnel-episode.v1"
 SCHEMA_VAULT_MANIFEST = "gradia-wind-tunnel-vault-manifest.v1"
 
-TRANSFORM_CATALOG_VERSION = "gradia-wind-tunnel-transform-catalog.v1"
+TRANSFORM_CATALOG_VERSION = "gradia-wind-tunnel-transform-catalog.v2"
 ORACLE_SUITE_VERSION = "gradia-wind-tunnel-oracle-suite.v1"
 ANALYST_VERSION = "gradia-wind-tunnel-analyst.v1"
 
