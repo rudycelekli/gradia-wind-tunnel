@@ -122,7 +122,17 @@ class AnthropicGuardGrader:
                            "Grade the candidate answer per the instructions.",
             }],
         }
-        resp = self._transport(url, headers, body)
+        import time as _time
+        _last = None
+        for _attempt in range(4):
+            try:
+                resp = self._transport(url, headers, body)
+                break
+            except Exception as _e:            # transient: timeout / 429 / 5xx / network
+                _last = _e
+                if _attempt == 3:
+                    raise
+                _time.sleep(min(2 ** _attempt, 8))   # 1s, 2s, 4s backoff
         text = "".join(
             block.get("text", "") for block in resp.get("content", [])
             if block.get("type") == "text"
