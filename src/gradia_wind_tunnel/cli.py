@@ -5,6 +5,8 @@
     gradia-wind-tunnel run [--benchmark gsm8k] [--cycles 6] [--out PATH]  # full study
     gradia-wind-tunnel verify-report REPORT.json  # recompute the study's chain head
     gradia-wind-tunnel phase0 [--benchmark gsm8k] [--real] [--live --model M --gateway URL]
+    gradia-wind-tunnel suite  [--benchmark gsm8k] [--rung L1|L2] [--real] [--live] [--limit N]
+    gradia-wind-tunnel localize --benchmark math [--real] [--live] [--limit N]  # witnessed causal slice
     gradia-wind-tunnel demo                     # offline end-to-end walkthrough
     gradia-wind-tunnel verify RUN.json          # recompute a run-log chain head
 """
@@ -96,6 +98,8 @@ def main(argv: list[str] | None = None) -> int:
         return _phase0(rest)
     if cmd == "suite":
         return _suite(rest)
+    if cmd == "localize":
+        return _localize(rest)
     print(__doc__)
     return 2
 
@@ -110,6 +114,7 @@ def _suite(argv: list[str]) -> int:
     real = live = False
     limit = 100
     max_cost = 300.0
+    rung = "L1"; l2_budget = 14
     i = 0
     while i < len(argv):
         a = argv[i]
@@ -123,6 +128,8 @@ def _suite(argv: list[str]) -> int:
         elif a == "--gateway": gateway = argv[i + 1]; i += 2
         elif a == "--prereg-sha256": prereg_sha = argv[i + 1]; i += 2
         elif a == "--max-cost-usd": max_cost = float(argv[i + 1]); i += 2
+        elif a == "--rung": rung = argv[i + 1]; i += 2
+        elif a == "--l2-budget": l2_budget = int(argv[i + 1]); i += 2
         else: raise SystemExit(f"suite: unknown option {a!r}")
     if not benchmark:
         raise SystemExit("suite requires --benchmark (gsm8k|math|gpqa_diamond|humaneval|swebench_verified)")
@@ -145,9 +152,11 @@ def _suite(argv: list[str]) -> int:
             input_usd_per_mtok=float(os.environ.get("GRADIA_WT_INPUT_USD_PER_MTOK", 5.0)),
             output_usd_per_mtok=float(os.environ.get("GRADIA_WT_OUTPUT_USD_PER_MTOK", 25.0))))
     manifest = run_suite(run_id, benchmark, judge=judge, real=real, limit=limit,
-                         out_dir=out, max_cost_usd=max_cost, preregistration_sha256=prereg_sha)
+                         out_dir=out, max_cost_usd=max_cost, preregistration_sha256=prereg_sha,
+                         rung=rung, l2_budget=l2_budget)
     print(json.dumps({
         "run_id": run_id,
+        "rung": str(rung).upper(),
         "mode": "LIVE" if live else ("real_offline_grader" if real else "offline_rehearsal"),
         "totals": manifest["totals"],
         "density_by_transform": {k: v["density_per_1000"] for k, v in manifest["density_by_transform"].items()},
@@ -265,6 +274,80 @@ def _verify_report(argv: list[str]) -> int:
     v = verify_report(load_json(Path(argv[0])))
     print(json.dumps(v, indent=2, sort_keys=True))
     return 0 if v["ok"] else 1
+
+
+def _localize(argv: list[str]) -> int:
+    """Witnessed single-variable causal localization on a real exploit family.
+    Holds oracle-wrongness fixed, changes exactly one construction variable under
+    an evolution witness, and finds which variable makes the grader pass a wrong
+    answer — then validates it prospectively on a held-out split."""
+    import os
+    from datetime import datetime, timezone
+    from .benchmark_suite import build_benchmark
+    from .canonical import write_canonical
+    from .witnessed_localization import run_localization, verify_localization
+    benchmark = out = run_id = model = gateway = prereg_sha = None
+    real = live = False
+    limit = 40
+    max_cost = 300.0
+    holdout = 0.5
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "--benchmark": benchmark = argv[i + 1]; i += 2
+        elif a == "--out": out = argv[i + 1]; i += 2
+        elif a == "--run-id": run_id = argv[i + 1]; i += 2
+        elif a == "--limit": limit = int(argv[i + 1]); i += 2
+        elif a == "--holdout-frac": holdout = float(argv[i + 1]); i += 2
+        elif a == "--real": real = True; i += 1
+        elif a == "--live": live = True; i += 1
+        elif a == "--model": model = argv[i + 1]; i += 2
+        elif a == "--gateway": gateway = argv[i + 1]; i += 2
+        elif a == "--prereg-sha256": prereg_sha = argv[i + 1]; i += 2
+        elif a == "--max-cost-usd": max_cost = float(argv[i + 1]); i += 2
+        else: raise SystemExit(f"localize: unknown option {a!r}")
+    if not benchmark:
+        raise SystemExit("localize requires --benchmark (gsm8k|math|gpqa_diamond|humaneval|hle)")
+    run_id = run_id or (f"gradia-wind-tunnel-localize-{benchmark}-" + datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S"))
+    model = model or os.environ.get("GRADIA_WT_MODEL")
+    gateway = gateway or os.environ.get("GRADIA_GUARD_GATEWAY_URL")
+    prereg_sha = prereg_sha or os.environ.get("GRADIA_WT_PREREG_SHA256")
+    if max_cost == 300.0 and os.environ.get("GRADIA_WT_MAX_COST_USD"):
+        max_cost = float(os.environ["GRADIA_WT_MAX_COST_USD"])
+    bench = build_benchmark(benchmark)
+    if real:
+        items = bench.items(seed=20260829, limit=limit)
+    elif hasattr(bench, "offline_samples"):
+        items = bench.offline_samples(seed=1)
+    else:
+        raise RuntimeError(f"{benchmark}: no offline samples; use --real")
+    if live:
+        if not (model and gateway):
+            raise SystemExit("localize --live needs --model and --gateway (or GRADIA_WT_MODEL / GRADIA_GUARD_GATEWAY_URL in .env)")
+        from .llm_judge import AnthropicGuardGrader, LLMJudge
+        judge = LLMJudge(AnthropicGuardGrader(
+            model=model, gateway_base_url=gateway,
+            input_usd_per_mtok=float(os.environ.get("GRADIA_WT_INPUT_USD_PER_MTOK", 5.0)),
+            output_usd_per_mtok=float(os.environ.get("GRADIA_WT_OUTPUT_USD_PER_MTOK", 25.0))))
+    else:
+        from .llm_judge import LLMJudge, SimulatedGraderProvider
+        judge = LLMJudge(SimulatedGraderProvider())
+    rep = run_localization(run_id, bench, items, judge, holdout_frac=holdout,
+                           max_cost_usd=max_cost, preregistration_sha256=prereg_sha)
+    out_path = Path(out) if out else Path("results") / f"{run_id}.localization.json"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    write_canonical(out_path, rep)
+    print(json.dumps({
+        "path": str(out_path),
+        "mode": "LIVE" if live else ("real_offline_grader" if real else "offline_rehearsal"),
+        "benchmark": benchmark,
+        "witness_engine": rep["witness_engine"],
+        "localized_variable": rep["localized_variable"],
+        "prospective": rep["prospective"],
+        "spent_usd": rep["spend"]["spent_usd"],
+        "self_digest_ok": verify_localization(rep),
+    }, indent=2))
+    return 0
 
 
 if __name__ == "__main__":

@@ -33,6 +33,7 @@ class Fork:
     changed_fields: tuple[str, ...] = ()
     single_variable_verified: bool = False
     projection_sha256: str | None = None
+    engine: str = "unknown"
 
 
 def substrate_available() -> bool:
@@ -62,8 +63,22 @@ def fork_on_variable(
     parent_policy = dict(policy or {})
 
     if not substrate_available():
-        return Fork(variable, value, "single_variable", parent_closure_id,
-                    witness_available=False)
+        # No production engine here -> use the repo's built-in witness engine.
+        # Same guarantees (before/after roots, single-variable proof, chained log),
+        # fully recomputable. This is why the causal instrument never degrades.
+        from .witness_engine import WitnessWorld, digest as _wdigest
+        w = WitnessWorld(case=dict(parent_case), policy=dict(parent_policy))
+        before_root = w.root
+        b_root, a_root, changed, projection = w.apply(
+            f"intervene-{variable}", {variable: value},
+            observation={"source": "wind-tunnel", "authority": "authoritative",
+                         "message": f"single-variable intervention: {variable}={value!r}"})
+        return Fork(
+            variable=variable, value=value, intervention="single_variable",
+            parent_closure_root=before_root, witness_available=True,
+            before_root=b_root, after_root=a_root, changed_fields=changed,
+            single_variable_verified=(changed == (variable,)),
+            projection_sha256=_wdigest(projection), engine="builtin-witness")
 
     from gradia_universes.canonical import digest
     from gradia_universes.contracts import Event, Observation, Scenario
@@ -104,8 +119,14 @@ def fork_on_variable(
         before_root=before_root, after_root=after_root,
         changed_fields=changed,
         single_variable_verified=(changed == (variable,)),
-        projection_sha256=digest(projection),
+        projection_sha256=digest(projection), engine="gradia_universes",
     )
+
+
+def witness_engine_name() -> str:
+    """Which engine backs the witness: the production universe engine when
+    installed, else the repo's built-in witness engine. Both are real."""
+    return "gradia_universes" if substrate_available() else "builtin-witness"
 
 
 def causal_validity_note() -> str:
@@ -113,5 +134,7 @@ def causal_validity_note() -> str:
         return ("universe forks available: single-variable interventions carry an "
                 "evolution witness (before/after world roots, occurrence chain) — "
                 "causal-strength slices on the real Gradia engine")
-    return ("universe substrate absent: using the procedural factorial — clean but "
-            "templated; slices are causal within the generated factor space")
+    return ("production universe engine absent: using the repo's built-in witness "
+            "engine — content-addressed before/after world roots, a single-variable "
+            "occurrence proof, and a hash-chained log; fully recomputable, same "
+            "witness guarantees, so the causal instrument does not degrade")

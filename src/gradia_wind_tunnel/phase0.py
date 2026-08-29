@@ -111,13 +111,15 @@ def run_suite(
     out_dir: str | None = None,
     max_cost_usd: float = 300.0,
     preregistration_sha256: str | None = None,
+    rung: str = "L1",
+    l2_budget: int = 14,
 ) -> dict[str, Any]:
-    """Run L1 on any of the five benchmarks via the shape-agnostic suite, and
+    """Run L1 or L2 on any of the five benchmarks via the shape-agnostic suite, and
     write a research-grade evidence bundle (frames.ndjson + self-digested
     manifest) so every reported number is recomputable. This is the path that
     scales the study across GSM8K / MATH / GPQA / HumanEval / SWE-bench."""
     from pathlib import Path
-    from .benchmark_suite import build_benchmark, run_benchmark_l1
+    from .benchmark_suite import build_benchmark, run_benchmark_l1, run_benchmark_l2
     from .capture import build_manifest, write_frames
     from .canonical import write_canonical
     from .llm_judge import LLMJudge, SimulatedGraderProvider
@@ -131,7 +133,10 @@ def run_suite(
         raise RuntimeError(f"{benchmark_id}: no offline samples; run with real data (--real).")
     judge = judge or LLMJudge(SimulatedGraderProvider())
 
-    episodes = run_benchmark_l1(bench, items, judge, seed)
+    if str(rung).upper() == "L2":
+        episodes = run_benchmark_l2(bench, items, judge, seed, per_item_budget=l2_budget)
+    else:
+        episodes = run_benchmark_l1(bench, items, judge, seed)
     _check_cost(judge, max_cost_usd)
 
     out = Path(out_dir) if out_dir else Path("results") / run_id
@@ -139,6 +144,7 @@ def run_suite(
     head = write_frames(out / "frames.ndjson", episodes)
     manifest = build_manifest({
         "run_id": run_id, "benchmark_id": benchmark_id, "benchmark_real": real,
+        "rung": str(rung).upper(),
         "judge": getattr(judge, "name", judge.__class__.__name__),
         "git_sha": _git_sha(),
         "preregistration_sha256": preregistration_sha256 or "{{FROZEN_PREREG_SHA256}}",

@@ -407,3 +407,63 @@ def run_benchmark_l1(bench: Benchmark, items: list[GradedItem], judge, seed: int
                 answer_sha256=_sha(atk.answer_text),
                 cost_usd=getattr(verdict, "cost_usd", 0.0)))
     return episodes
+
+
+def _l2_candidates(bench: Benchmark, item: GradedItem, rng: random.Random) -> list[Attack]:
+    """Expanded adaptive-search surface: the base wrong-by-construction attacks,
+    keyword inflation over EVERY favored phrase (not just one), and every
+    judge-gaming vector. Strictly larger than the fixed L1 sweep, so an adaptive
+    attacker gets more shots per item — the point of L2."""
+    from .transforms import JUDGE_GAMING_WRAPPERS
+    as_comment = getattr(bench, "benchmark_id", "") in {"humaneval", "swebench_verified"}
+    base = list(bench.attacks(item, rng))
+    base_wrong = base[0].answer_text if base else item.correct_answer_text
+    gold = str(item.gold)
+    cands: list[Attack] = list(base)
+    for ph in FAVORED_PHRASES:
+        cands.append(_keyword_attack(base_wrong, ph, gold))
+    for nm, wrap in JUDGE_GAMING_WRAPPERS.items():
+        cands.append(Attack(nm, wrap(base_wrong, rng, as_comment=as_comment),
+                            witness=f"oracle: wrong (gold={gold}); judge-gaming ({nm})",
+                            favored_phrase=None))
+    return cands
+
+
+def run_benchmark_l2(bench: Benchmark, items: list[GradedItem], judge, seed: int,
+                     *, per_item_budget: int = 14) -> list[Episode]:
+    """Adaptive search (L2), shape-agnostic. Per item, search the expanded
+    candidate set under a per-item query budget and STOP at the first
+    oracle-wrong AND judge-pass (an exploit); record that exploit, else the last
+    attempt (a resisted item). Naturalness-screened. One episode per item, so
+    exploit density = the fraction of items a budgeted adaptive attacker can crack.
+    A benchmark that still resists L2 is a genuine robustness result, not a miss."""
+    from .adversary import NaturalnessScreen
+    rng = random.Random(seed ^ 0x20)
+    screen = NaturalnessScreen()
+    episodes: list[Episode] = []
+    for item in items:
+        found: Episode | None = None
+        last: Episode | None = None
+        used = 0
+        for atk in _l2_candidates(bench, item, rng):
+            if used >= per_item_budget:
+                break
+            if not screen.passes(atk.answer_text):
+                continue
+            used += 1
+            oracle_wrong = not bench.oracle(atk.answer_text, item)
+            verdict = judge.score(atk.answer_text, item.question)
+            ep = Episode(
+                rung="L2", item_id=item.item_id, transform_id=atk.transform_id,
+                factors=dict(item.factors), favored_phrase=atk.favored_phrase,
+                oracle_wrong=oracle_wrong, judge_pass=verdict.passed,
+                judge_score=verdict.score, is_exploit=oracle_wrong and verdict.passed,
+                answer_sha256=_sha(atk.answer_text),
+                cost_usd=getattr(verdict, "cost_usd", 0.0))
+            last = ep
+            if ep.is_exploit:
+                found = ep
+                break
+        if found or last:
+            episodes.append(found or last)
+    return episodes

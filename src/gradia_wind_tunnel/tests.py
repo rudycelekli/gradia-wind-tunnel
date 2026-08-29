@@ -228,15 +228,24 @@ def main() -> int:
                            case={"age_band": "65-74", "dementia": "none"})
     check("universe fork declares a single-variable intervention",
           _fk.intervention == "single_variable" and _fk.variable == "age_band")
-    if substrate_available():
-        # real engine: before/after roots differ, exactly one field changed
-        check("real universe fork emits a witness (before != after root)",
-              _fk.witness_available and _fk.before_root != _fk.after_root)
-        check("real universe fork proves single-variable change",
-              _fk.single_variable_verified and _fk.changed_fields == ("age_band",))
-    else:
-        check("universe fork falls back cleanly without the substrate",
-              _fk.witness_available is False)
+    # The witness is REAL on both paths now: the production universe engine when
+    # present, else the repo's built-in witness engine — never a degraded fallback.
+    from .universe_forks import witness_engine_name
+    check("universe fork emits a real witness (before != after root)",
+          _fk.witness_available and _fk.before_root != _fk.after_root)
+    check("universe fork proves single-variable change",
+          _fk.single_variable_verified and _fk.changed_fields == ("age_band",))
+    check("witness engine is named (production or built-in), never absent",
+          _fk.engine in ("gradia_universes", "builtin-witness")
+          and _fk.engine == witness_engine_name())
+    if not substrate_available():
+        check("built-in witness engine backs the fork when substrate absent",
+              _fk.engine == "builtin-witness")
+        from .witness_engine import WitnessWorld, verify_chain
+        _w = WitnessWorld(case={"gaming": "none"})
+        _w.apply("intervene-gaming", {"gaming": "false_citation"})
+        check("built-in witness occurrence chain verifies (tamper-evident)",
+              verify_chain(_w.occurrences))
 
     # --- real LLM-judge path (offline, via grading provider) ---------------
     from .llm_judge import LLMJudge, SimulatedGraderProvider
