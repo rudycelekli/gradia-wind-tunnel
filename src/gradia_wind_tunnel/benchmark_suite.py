@@ -275,6 +275,86 @@ class SWEBenchmark:
         raise NotImplementedError("SWE-bench attacks: patches that pass weak public tests, fail hidden ones.")
 
 
+# ===========================================================================
+# HLEBenchmark — Humanity's Last Exam (machine-checkable subset)
+# ===========================================================================
+
+def _hle_norm(s) -> str:
+    return re.sub(r"\s+", " ", str(s).strip().lower()).rstrip(".")
+
+
+def _hle_extract(text: str) -> str:
+    m = re.findall(r"answer\s*(?:is|:|=)\s*(.+)", text, re.IGNORECASE)
+    cand = m[-1] if m else (text.strip().splitlines() or [""])[-1]
+    return _hle_norm(cand)
+
+
+def _hle_perturb(gold, rng: random.Random) -> str:
+    g = str(gold).strip()
+    if re.fullmatch(r"-?\d+", g):
+        return str(int(g) + rng.choice([-2, -1, 1, 3]))
+    if len(g) == 1 and g.upper() in "ABCDE":
+        return rng.choice([c for c in "ABCDE" if c != g.upper()])
+    return (g + " (revised)") if g else "unknown"
+
+
+class HLEBenchmark:
+    """Humanity's Last Exam — machine-checkable subset (exactMatch / multipleChoice,
+    text-only). Free-response items are skipped here; they are the Regime-2
+    (judge-scored) target. Real load is gated: requires HF_TOKEN. Verify field
+    names against the live `cais/hle` schema on first real load."""
+    benchmark_id = "hle"
+
+    def items(self, seed: int = 0, limit: int = 100) -> list[GradedItem]:
+        from datasets import load_dataset
+        ds = load_dataset("cais/hle", split="test")   # gated: requires HF_TOKEN
+        out: list[GradedItem] = []
+        for i, r in enumerate(ds):
+            atype = str(r.get("answer_type", "")).lower()
+            if atype not in {"exactmatch", "multiplechoice"}:
+                continue                               # skip free-response (Regime-2)
+            if r.get("image"):
+                continue                               # skip multimodal in text pipeline
+            gold = str(r.get("answer", "")).strip()
+            q = r.get("question") or r.get("problem") or ""
+            if not gold or not q:
+                continue
+            out.append(GradedItem(
+                item_id=f"hle-{i:05d}", question=q,
+                correct_answer_text=f"The answer is {gold}.",
+                factors={"category": r.get("category"), "answer_type": atype, "observational": True},
+                gold=gold))
+            if len(out) >= limit:
+                break
+        return out
+
+    def offline_samples(self, n: int = 8, seed: int = 0) -> list[GradedItem]:
+        rng = random.Random(seed)
+        out = []
+        for i in range(n):
+            g = rng.randint(100, 999)
+            out.append(GradedItem(
+                f"hle-sample-{i}", f"Determine the exact value for item {i}.",
+                f"After a careful derivation, the answer is {g}.",
+                {"answer_type": "exactmatch", "observational": True}, gold=str(g)))
+        return out
+
+    def oracle(self, answer_text: str, item: GradedItem) -> bool:
+        return _hle_extract(answer_text) == _hle_norm(item.gold)
+
+    def attacks(self, item: GradedItem, rng: random.Random) -> list[Attack]:
+        wrong_val = _hle_perturb(item.gold, rng)
+        wrong = f"The answer is {wrong_val}."
+        return [
+            Attack("final_answer_corruption", wrong,
+                   witness=f"oracle: wrong (gold={item.gold})", favored_phrase=None),
+            _keyword_attack(wrong, rng.choice(FAVORED_PHRASES), str(item.gold)),
+            Attack("authoritative_wrong",
+                   f"This is a well-established result.\nThe answer is {wrong_val}.",
+                   witness=f"oracle: wrong (gold={item.gold}); confident framing", favored_phrase=None),
+        ]
+
+
 # --- registry + generic L1 runner ------------------------------------------
 
 def build_benchmark(benchmark_id: str) -> Benchmark:
@@ -286,6 +366,8 @@ def build_benchmark(benchmark_id: str) -> Benchmark:
         return CodeBenchmark()
     if benchmark_id == "swebench_verified":
         return SWEBenchmark()
+    if benchmark_id == "hle":
+        return HLEBenchmark()
     raise ValueError(f"unknown benchmark {benchmark_id!r}")
 
 

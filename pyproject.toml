@@ -20,6 +20,7 @@ classifiers = [
 dependencies = []
 
 [project.optional-dependencies]
+real = ["datasets"]
 dev = ["pytest>=8.3", "ruff>=0.9", "mypy>=1.14"]
 
 [project.scripts]

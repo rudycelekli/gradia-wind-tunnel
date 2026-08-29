@@ -67,6 +67,10 @@ HYPOTHESES: tuple[Hypothesis, ...] = (
                "lowest exploit density per dollar, but > 0", "reaching 0 would mean a structural cure exists"),
     Hypothesis("H5", "Named causal slices predict failure on prospectively generated held-out items above baselines.",
                "predicted-slice rate > broad-slice and random-slice controls", "no lift would falsify causal identification"),
+    Hypothesis("H6", "For oracle-less scorers (LLM-judge/rubric), adaptive search finds semantics-preserving inputs that move the verdict above the natural rate; exploitability concentrates in high judge-disagreement regions.",
+               "L2 invariance-violation rate > L0 natural rate; disagreement-region exploit rate > agreement-region", "invariance-stable judges would mean oracle-less benchmarks are safer than feared (also publishable)"),
+    Hypothesis("H7", "In agentic/universe tasks the witnessed record proves a nonzero, human-free rate of accepted answers that assert facts the world contradicts (witnessed confabulation).",
+               "witnessed-confabulation rate > 0 with zero human labels", "a zero rate bounds the witnessed substrate reach as a partial oracle"),
 )
 
 
@@ -88,4 +92,7 @@ TARGET_BENCHMARKS: tuple[BenchmarkSpec, ...] = (
     BenchmarkSpec("swebench_verified", "code", "unit_tests",
                   ("unit_test_verifier",), "{{SWEBENCH_SNAPSHOT}}",
                   "frontier agentic-coding benchmark with a DOCUMENTED test-gaming precedent"),
+    BenchmarkSpec("hle", "mcq", "key_match",
+                  ("exact_match_extractor",), "{{HLE_SNAPSHOT}}",
+                  "current frontier multidisciplinary reasoning benchmark reported in recent frontier model cards; machine-checkable subset only (free-response half is a Regime-2 target)"),
 )
