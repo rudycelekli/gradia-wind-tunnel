@@ -98,7 +98,7 @@ class AnthropicGuardGrader:
         import urllib.request
         data = _json.dumps(body).encode()
         req = urllib.request.Request(url, data=data, headers=headers, method="POST")
-        with urllib.request.urlopen(req, timeout=60) as resp:
+        with urllib.request.urlopen(req, timeout=90) as resp:
             return _json.loads(resp.read().decode())
 
     def grade(self, question: str, answer: str, rubric: str) -> tuple[str, float]:
@@ -124,15 +124,16 @@ class AnthropicGuardGrader:
         }
         import time as _time
         _last = None
-        for _attempt in range(4):
+        _attempts = 7
+        for _attempt in range(_attempts):
             try:
                 resp = self._transport(url, headers, body)
                 break
             except Exception as _e:            # transient: timeout / 429 / 5xx / network
                 _last = _e
-                if _attempt == 3:
+                if _attempt == _attempts - 1:
                     raise
-                _time.sleep(min(2 ** _attempt, 8))   # 1s, 2s, 4s backoff
+                _time.sleep(min(2 ** _attempt, 30))   # 1,2,4,8,16,30s -> ~11 min total budget/call
         text = "".join(
             block.get("text", "") for block in resp.get("content", [])
             if block.get("type") == "text"
