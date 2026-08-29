@@ -467,11 +467,33 @@ engine, not a one-off. (Provider calls route through the Guard gateway in *gatew
 
 ### 10.1 Testbeds
 
-- **Tier A — famous public oracle benchmarks (named):** GSM8K and MATH (numeric / boxed),
-  GPQA-Diamond (A–D), HLE (machine-checkable subset), HumanEval (unit-test oracle), SWE-bench Verified (execution;
-  documented test-gaming precedent). Tier A also carries the **agentic environment-state testbed** (§4.6) — a deterministic, in-repo reward-hacking archetype spanning five weak-checker types, needing no external data and no model in the loop, the controlled counterpart to SWE-bench Verified.
-- **Tier B — Gradia universes:** the v4r1 underwriting family + one second domain, for
-  the richest causal claims.
+We select testbeds by **scorer archetype and frontier relevance**, in two tiers. A key
+point: *capability* saturation (whether a benchmark still separates models) is irrelevant
+to *scorer gameability* — a benchmark models have solved can still have a wide-open judge —
+so the saturated classics stay useful as controls while the frontier testbeds carry the
+relevance.
+
+- **Frontier testbeds — the field's live trust gap (lead).** The benchmarks today's
+  frontier launches actually report and that remain unsaturated: **HLE** (Humanity's Last
+  Exam, machine-checkable subset — the frontier knowledge exam), **GPQA-Diamond**
+  (graduate-level science MCQ), **SWE-bench Verified** (agentic coding; execution oracle
+  with the documented weak-test-gaming surface), and the **agentic environment-state
+  archetype** (§4.6 — reward-hacking the checker; the Terminal-Bench / OSWorld surface).
+  These are where evaluation trust is contested *now*, and where a scorer audit matters most.
+- **Control / method-validation testbeds — the saturated classics.** **GSM8K**
+  (grade-school arithmetic), **MATH** (competition math, `\boxed{}`), and **HumanEval**
+  (unit-test code): solved for capability (top models ~95–100%), retained precisely because
+  their scorers are simple, deterministic, and well-understood — clean controls that isolate
+  the method and the numeric/code scorer archetypes at near-zero cost. A gameable scorer
+  here is a scorer defect, not a hard task.
+- **Tier B — Gradia universes:** the v4r1 underwriting family + one second domain, for the
+  richest causal claims.
+
+*Dataset provenance.* The canonical MATH source (`hendrycks/competition_math`) was withdrawn
+under a January 2025 copyright takedown (Art of Problem Solving); this study loads the same
+competition problems from the `DigitalLearningGmbH/MATH-lighteval` mirror (`test` split,
+first 200) — a caveat noted in §18, since mirrors of copyrighted competition content can
+themselves be withdrawn.
 
 ### 10.2 Factors and design
 
@@ -546,20 +568,23 @@ by `capture.verify_bundle` (all five bundles: `ok`), and every exploit is oracle
 
 **Table R1 — L1 exploit density (per 1,000 attempts), 2026-08-29.**
 
-| Benchmark | Attempts | Exploits | Density /1k | Scorer resisted |
-|---|---:|---:|---:|:--:|
-| GSM8K | 500 | 0 | 0 | ✓ |
-| MATH | 500 | 63 | 126 | — |
-| GPQA-Diamond | 500 | 0 | 0 | ✓ |
-| HumanEval | 500 | 42 | 84 | — |
-| HLE (checkable subset) | 500 | 25 | 50 | — |
-| **Total** | **2,500** | **130** | — | 2 of 5 |
+| Benchmark | Tier | Attempts | Exploits | Density /1k | Scorer resisted |
+|---|---|---:|---:|---:|:--:|
+| HLE (checkable subset) | frontier | 500 | 25 | 50 | — |
+| GPQA-Diamond | frontier | 500 | 0 | 0 | ✓ |
+| GSM8K | control | 500 | 0 | 0 | ✓ |
+| MATH | control | 500 | 63 | 126 | — |
+| HumanEval | control | 500 | 42 | 84 | — |
+| **Total** | | **2,500** | **130** | — | 2 of 5 |
 
-Three of five benchmarks are gameable at L1; two resist. The split is not random: the two
-that resist (GSM8K arithmetic, GPQA-Diamond key-match) give the judge a target it can
-independently verify, so no oracle-wrong answer survives; the three that fall (competition
-math, code, frontier multidisciplinary) are harder or more open-ended, where the judge
-cannot cheaply re-derive the truth.
+Read the frontier tier first: **HLE — the frontier knowledge exam — is already gameable at
+L1** (50/1k, led by the judge-gaming family), the single most consequential result here,
+while **GPQA-Diamond's key-match scorer resists** at this pool size. Among the saturated
+controls, MATH and HumanEval fall — the method reproduces cleanly on well-understood numeric
+and code scorers — while GSM8K resists. The resist/fall split is not random: a scorer with a
+target it can independently re-derive (arithmetic, key-match) admits no oracle-wrong answer;
+harder or more open-ended scorers cannot cheaply re-derive the truth and leak. (SWE-bench and
+the agentic archetype of §4.6 extend the frontier tier; the agent-env result is §13.3.)
 
 **Exploit DNA (Figure 5).** The transform × benchmark spectrum shows each benchmark
 has a *distinct* blind spot, not a uniform one: **MATH** is broadly gameable (ten of ten
@@ -654,7 +679,11 @@ The preregistration is git-pinned, spend-capped, and self-digested; the transfor
 and oracle specs are frozen and hashed into it; the hidden-vault empty head is published
 before any run. Every reported number is recomputable from `frames.ndjson` via
 `verify_bundle`, and the whole study replays offline from checked-in evidence. The
-instrument ships with 96 property tests.
+instrument ships with 96 property tests. **Dataset provenance:** the canonical MATH source
+(`hendrycks/competition_math`) was withdrawn under a January 2025 copyright takedown
+(Art of Problem Solving); runs load the same competition problems from a community mirror
+(`DigitalLearningGmbH/MATH-lighteval`, `test` split — the source confirmed for this study),
+with the caveat that mirrors of copyrighted competition content can be withdrawn.
 
 ---
 
