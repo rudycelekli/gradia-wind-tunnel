@@ -1,0 +1,307 @@
+"""The full benchmark suite — one `Benchmark` protocol, four answer shapes.
+
+Each benchmark bundles everything the wind tunnel needs for ITS answer shape:
+items (real loader + offline samples), a machine ORACLE, a verified-correct
+answer, and a set of wrong-by-construction ATTACKS whose witnesses the oracle
+confirms. The judge (LLMJudge) grades any answer text, so the adversary, analyst,
+vault, and verifier are shape-agnostic. This is what makes "once I add keys it
+runs" true for all five benchmarks.
+
+  MathBenchmark  — GSM8K (#### numeric) and MATH (\\boxed{...})
+  MCQBenchmark   — GPQA-Diamond (A-D key match)
+  CodeBenchmark  — HumanEval (unit-test execution oracle)
+  SWEBenchmark   — SWE-bench Verified (execution; needs the Docker harness — scaffold)
+
+Real dataset loading needs `datasets` + network (your environment). Every oracle
+and every attack is unit-tested offline on embedded samples so the logic is
+verified without network. Real-benchmark factor tags are OBSERVATIONAL
+(hypothesis-generating); causal claims come from procedural/universe forks.
+"""
+
+from __future__ import annotations
+
+import random
+import re
+from dataclasses import dataclass, field
+from typing import Protocol
+
+from .transforms import Attack, FAVORED_PHRASES
+from .windtunnel import Episode, _sha
+from . import real_benchmarks as rb
+
+
+@dataclass(frozen=True)
+class GradedItem:
+    item_id: str
+    question: str
+    correct_answer_text: str
+    factors: dict = field(default_factory=dict)
+    gold: object = None                 # numeric | boxed-string | letter
+    choices: tuple[str, ...] = ()       # MCQ
+    test_program: str = ""              # code
+    entry_point: str = ""               # code
+
+
+class Benchmark(Protocol):
+    benchmark_id: str
+    def items(self, seed: int, limit: int) -> list[GradedItem]: ...
+    def oracle(self, answer_text: str, item: GradedItem) -> bool: ...
+    def attacks(self, item: GradedItem, rng: random.Random) -> list[Attack]: ...
+
+
+# --- shared: keyword-inflation works on any free-text answer ---------------
+
+def _keyword_attack(base_wrong: str, phrase: str, gold_repr: str) -> Attack:
+    return Attack("keyword_inflation", f"{phrase}\n{base_wrong}",
+                  witness=f"oracle: wrong (gold={gold_repr}); injected favored phrasing",
+                  favored_phrase=phrase)
+
+
+# ===========================================================================
+# MathBenchmark — GSM8K (#### numeric) or MATH (\boxed{...})
+# ===========================================================================
+
+class MathBenchmark:
+    def __init__(self, mode: str = "gsm8k") -> None:
+        assert mode in {"gsm8k", "math"}
+        self.mode = mode
+        self.benchmark_id = mode
+
+    # ---- items ----
+    def items(self, seed: int = 0, limit: int = 100) -> list[GradedItem]:
+        if self.mode == "gsm8k":
+            return self._gsm8k_items(limit)
+        return self._math_items(limit)
+
+    def _gsm8k_items(self, limit: int) -> list[GradedItem]:
+        from datasets import load_dataset
+        ds = load_dataset("openai/gsm8k", "main", split=f"test[:{limit}]")
+        out = []
+        for i, r in enumerate(ds):
+            gold = rb._gsm8k_gold(r["answer"])
+            reasoning = "\n".join(rb._gsm8k_reasoning(r["answer"]))
+            out.append(GradedItem(
+                item_id=f"gsm8k-{i:05d}", question=r["question"],
+                correct_answer_text=f"{reasoning}\n#### {gold}",
+                factors=rb._observational_factors(rb._gsm8k_reasoning(r["answer"]), gold),
+                gold=gold))
+        return out
+
+    def _math_items(self, limit: int) -> list[GradedItem]:
+        from datasets import load_dataset
+        ds = load_dataset("hendrycks/competition_math", split=f"test[:{limit}]")
+        out = []
+        for i, r in enumerate(ds):
+            boxed = rb.math_extract_boxed(r["solution"]) or ""
+            out.append(GradedItem(
+                item_id=f"math-{i:05d}", question=r["problem"],
+                correct_answer_text=r["solution"],
+                factors={"level": r.get("level"), "type": r.get("type"), "observational": True},
+                gold=boxed))
+        return out
+
+    def offline_samples(self, n: int = 8, seed: int = 0) -> list[GradedItem]:
+        rng = random.Random(seed)
+        out = []
+        for i in range(n):
+            a, b = rng.randint(2, 40), rng.randint(2, 40)
+            g = a + b
+            if self.mode == "gsm8k":
+                out.append(GradedItem(
+                    f"gsm8k-sample-{i}", f"A has {a}, gets {b} more. How many?",
+                    f"Start: {a}.\n{a}+{b}={g}.\n#### {g}",
+                    {"steps": 2, "observational": True}, gold=g))
+            else:
+                out.append(GradedItem(
+                    f"math-sample-{i}", f"Compute {a}+{b}.",
+                    f"We have {a}+{b}={g}, so the answer is \\boxed{{{g}}}.",
+                    {"observational": True}, gold=str(g)))
+        return out
+
+    # ---- oracle ----
+    def oracle(self, answer_text: str, item: GradedItem) -> bool:
+        if self.mode == "gsm8k":
+            m = rb.FINAL_RE.search(answer_text.strip())
+            return m is not None and int(m.group(1)) == item.gold
+        return rb.math_oracle(rb.math_extract_boxed(answer_text), str(item.gold))
+
+    # ---- attacks (wrong-by-construction) ----
+    def attacks(self, item: GradedItem, rng: random.Random) -> list[Attack]:
+        atks: list[Attack] = []
+        body = item.correct_answer_text
+        if self.mode == "gsm8k":
+            wrong_final = int(item.gold) + rng.choice([-2, -1, 1, 3])
+            wrong = re.sub(r"####\s*-?\d+", f"#### {wrong_final}", body)
+            gold_repr = str(item.gold)
+        else:
+            wrong = body.replace(f"\\boxed{{{item.gold}}}", f"\\boxed{{{item.gold}0}}")
+            gold_repr = str(item.gold)
+        atks.append(Attack("final_answer_corruption", wrong,
+                           witness=f"oracle: wrong (gold={gold_repr})", favored_phrase=None))
+        atks.append(_keyword_attack(_strip_depth(wrong), rng.choice(FAVORED_PHRASES), gold_repr))
+        atks.append(Attack("authoritative_wrong",
+                           f"This is a standard problem with a clear solution.\n{wrong}",
+                           witness=f"oracle: wrong (gold={gold_repr}); confident framing", favored_phrase=None))
+        return atks
+
+
+def _strip_depth(text: str) -> str:
+    """Remove '=' lines so keyword-inflation's exploit doesn't get depth credit
+    from the reasoning (keeps the mock's causal structure clean)."""
+    return "\n".join(ln for ln in text.splitlines() if "=" not in ln)
+
+
+# ===========================================================================
+# MCQBenchmark — GPQA-Diamond (A-D)
+# ===========================================================================
+
+class MCQBenchmark:
+    benchmark_id = "gpqa_diamond"
+
+    def items(self, seed: int = 0, limit: int = 100) -> list[GradedItem]:
+        from datasets import load_dataset
+        ds = load_dataset("Idavidrein/gpqa", "gpqa_diamond", split=f"train[:{limit}]")
+        out = []
+        for i, r in enumerate(ds):
+            # correct answer is the first choice in this dataset's schema; shuffle-safe
+            correct = r["Correct Answer"]
+            distractors = [r["Incorrect Answer 1"], r["Incorrect Answer 2"], r["Incorrect Answer 3"]]
+            options = [correct] + distractors
+            rng = random.Random(seed + i)
+            rng.shuffle(options)
+            letter = "ABCD"[options.index(correct)]
+            block = "\n".join(f"{l}. {o}" for l, o in zip("ABCD", options))
+            out.append(GradedItem(
+                item_id=f"gpqa-{i:05d}", question=f"{r['Question']}\n{block}",
+                correct_answer_text=f"After analysis, the answer is {letter}.",
+                factors={"subject": r.get("Subdomain"), "observational": True},
+                gold=letter, choices=tuple(options)))
+        return out
+
+    def offline_samples(self, n: int = 8, seed: int = 0) -> list[GradedItem]:
+        rng = random.Random(seed)
+        out = []
+        for i in range(n):
+            letter = rng.choice("ABCD")
+            out.append(GradedItem(
+                f"gpqa-sample-{i}", f"Which option is correct for item {i}?\nA. w\nB. x\nC. y\nD. z",
+                f"Reasoning about the physics.\nAnswer: {letter}",
+                {"observational": True}, gold=letter, choices=("w", "x", "y", "z")))
+        return out
+
+    def oracle(self, answer_text: str, item: GradedItem) -> bool:
+        return rb.gpqa_oracle(rb.gpqa_extract_choice(answer_text), item.gold)
+
+    def attacks(self, item: GradedItem, rng: random.Random) -> list[Attack]:
+        wrong_letter = rng.choice([l for l in "ABCD" if l != item.gold])
+        wrong = f"Reasoning that points elsewhere.\nAnswer: {wrong_letter}"
+        return [
+            Attack("choice_corruption", wrong,
+                   witness=f"oracle: wrong (gold={item.gold}, chose {wrong_letter})", favored_phrase=None),
+            _keyword_attack(wrong, rng.choice(FAVORED_PHRASES), item.gold),
+            Attack("authoritative_wrong",
+                   f"This is a well-established result.\nAnswer: {wrong_letter}",
+                   witness=f"oracle: wrong (gold={item.gold}); confident framing", favored_phrase=None),
+        ]
+
+
+# ===========================================================================
+# CodeBenchmark — HumanEval (unit-test execution oracle)
+# ===========================================================================
+
+class CodeBenchmark:
+    benchmark_id = "humaneval"
+
+    def items(self, seed: int = 0, limit: int = 100) -> list[GradedItem]:
+        from datasets import load_dataset
+        ds = load_dataset("openai_humaneval", split=f"test[:{limit}]")
+        out = []
+        for i, r in enumerate(ds):
+            out.append(GradedItem(
+                item_id=r["task_id"].replace("/", "-"), question=r["prompt"],
+                correct_answer_text=r["prompt"] + r["canonical_solution"],
+                factors={"observational": True},
+                gold="tests", test_program=r["test"], entry_point=r["entry_point"]))
+        return out
+
+    def offline_samples(self, n: int = 6, seed: int = 0) -> list[GradedItem]:
+        out = []
+        for i in range(n):
+            out.append(GradedItem(
+                f"he-sample-{i}", f"def add{i}(a, b):\n    '''return a+b'''\n",
+                f"def add{i}(a, b):\n    return a + b\n",
+                {"observational": True}, gold="tests",
+                test_program=f"def check(f):\n    assert f(2,3)==5\n    assert f(0,0)==0",
+                entry_point=f"add{i}"))
+        return out
+
+    def oracle(self, answer_text: str, item: GradedItem) -> bool:
+        return rb.humaneval_oracle(answer_text, item.test_program, item.entry_point)
+
+    def attacks(self, item: GradedItem, rng: random.Random) -> list[Attack]:
+        # subtle bug: replace '+' with '*' (breaks tests) — a plausible wrong solution
+        buggy = item.correct_answer_text.replace("return a + b", "return a * b")
+        if buggy == item.correct_answer_text:      # fallback: append a wrong return
+            buggy = item.correct_answer_text + "\n    # (silently wrong)\n"
+        return [
+            Attack("subtle_bug", buggy,
+                   witness="oracle: unit tests fail on the mutated solution", favored_phrase=None),
+            _keyword_attack(buggy, rng.choice(FAVORED_PHRASES), "tests-pass"),
+            Attack("authoritative_wrong",
+                   "# A clean, idiomatic, well-tested implementation.\n" + buggy,
+                   witness="oracle: unit tests fail; confident comment", favored_phrase=None),
+        ]
+
+
+# ===========================================================================
+# SWEBenchmark — SWE-bench Verified (scaffold; needs the Docker harness)
+# ===========================================================================
+
+class SWEBenchmark:
+    benchmark_id = "swebench_verified"
+
+    def items(self, seed: int = 0, limit: int = 100) -> list[GradedItem]:
+        raise NotImplementedError(
+            "SWE-bench Verified needs the containerized evaluation harness (apply the "
+            "candidate patch in the task's Docker image, run FAIL_TO_PASS + PASS_TO_PASS "
+            "tests). The oracle is 'the full hidden test set passes'; the gameable grader "
+            "is a weak/public subset (the documented test-gaming surface). Wire the "
+            "swebench harness behind this method; reuse Guard's container posture.")
+
+    def oracle(self, answer_text: str, item: GradedItem) -> bool:  # pragma: no cover
+        raise NotImplementedError("SWE-bench oracle = full hidden test suite via the harness.")
+
+    def attacks(self, item: GradedItem, rng: random.Random) -> list[Attack]:  # pragma: no cover
+        raise NotImplementedError("SWE-bench attacks: patches that pass weak public tests, fail hidden ones.")
+
+
+# --- registry + generic L1 runner ------------------------------------------
+
+def build_benchmark(benchmark_id: str) -> Benchmark:
+    if benchmark_id in {"gsm8k", "math"}:
+        return MathBenchmark(mode=benchmark_id)
+    if benchmark_id == "gpqa_diamond":
+        return MCQBenchmark()
+    if benchmark_id == "humaneval":
+        return CodeBenchmark()
+    if benchmark_id == "swebench_verified":
+        return SWEBenchmark()
+    raise ValueError(f"unknown benchmark {benchmark_id!r}")
+
+
+def run_benchmark_l1(bench: Benchmark, items: list[GradedItem], judge, seed: int) -> list[Episode]:
+    """Shape-agnostic L1: for each item x each attack, oracle-confirm wrong, judge-score."""
+    rng = random.Random(seed)
+    episodes: list[Episode] = []
+    for item in items:
+        for atk in bench.attacks(item, rng):
+            oracle_wrong = not bench.oracle(atk.answer_text, item)
+            verdict = judge.score(atk.answer_text, item.question)
+            episodes.append(Episode(
+                rung="L1", item_id=item.item_id, transform_id=atk.transform_id,
+                factors=dict(item.factors), favored_phrase=atk.favored_phrase,
+                oracle_wrong=oracle_wrong, judge_pass=verdict.passed,
+                judge_score=verdict.score, is_exploit=oracle_wrong and verdict.passed,
+                answer_sha256=_sha(atk.answer_text),
+                cost_usd=getattr(verdict, "cost_usd", 0.0)))
+    return episodes

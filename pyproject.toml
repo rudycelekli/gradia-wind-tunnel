@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gradia-wind-tunnel"
+version = "0.1.0"
+description = "An evaluation immune system: adversarial repair of benchmark scorers, oracle-witnessed and verifiable."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Rudy Celekli" }]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3", "ruff>=0.9", "mypy>=1.14"]
+
+[project.scripts]
+gradia-wind-tunnel = "gradia_wind_tunnel.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gradia_wind_tunnel"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

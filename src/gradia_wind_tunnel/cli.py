@@ -1,0 +1,271 @@
+"""Command-line surface for the Wind Tunnel.
+
+    gradia-wind-tunnel prereg-freeze --run-id <id> [--out PATH] [--max-cost-usd N]
+    gradia-wind-tunnel prereg-verify PATH
+    gradia-wind-tunnel run [--benchmark gsm8k] [--cycles 6] [--out PATH]  # full study
+    gradia-wind-tunnel verify-report REPORT.json  # recompute the study's chain head
+    gradia-wind-tunnel phase0 [--benchmark gsm8k] [--real] [--live --model M --gateway URL]
+    gradia-wind-tunnel demo                     # offline end-to-end walkthrough
+    gradia-wind-tunnel verify RUN.json          # recompute a run-log chain head
+"""
+
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+from . import preregistration
+from . import verify as verify_module
+
+
+def _prereg_freeze(argv: list[str]) -> int:
+    run_id = None
+    out = None
+    max_cost = 300.0
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "--run-id":
+            run_id = argv[i + 1]; i += 2
+        elif a == "--out":
+            out = argv[i + 1]; i += 2
+        elif a == "--max-cost-usd":
+            max_cost = float(argv[i + 1]); i += 2
+        else:
+            raise SystemExit(f"prereg-freeze: unknown option {a!r}")
+    if not run_id:
+        from datetime import datetime, timezone
+        run_id = "gradia-wind-tunnel-phase0-" + datetime.now(timezone.utc).strftime("%Y%m%d-01")
+    out_path = Path(out) if out else Path("preregistrations") / f"{run_id}.json"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    if out_path.exists():
+        raise SystemExit(f"prereg-freeze: refuses to overwrite {out_path}")
+    path, sha = preregistration.freeze(run_id, out_path, max_cost_usd=max_cost)
+    print(json.dumps({"path": str(path), "preregistration_sha256": sha}, indent=2))
+    print("\nNext: publish this file's sha256 (and the empty-vault chain head) with a "
+          "timestamp (Zenodo/git tag) BEFORE any Phase-1 run. That is the freeze.")
+    return 0
+
+
+def _prereg_verify(argv: list[str]) -> int:
+    if len(argv) != 1:
+        raise SystemExit("usage: prereg-verify PATH")
+    report = preregistration.verify(Path(argv[0]))
+    print(json.dumps(report, indent=2, sort_keys=True))
+    return 0 if report["ok"] else 1
+
+
+def _load_dotenv(path: str = ".env") -> None:
+    """Dependency-free .env loader: KEY=VALUE lines into os.environ (no override
+    of already-set vars). Comments (#) and blanks ignored."""
+    import os
+    if not Path(path).exists():
+        return
+    for line in Path(path).read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key, value = key.strip(), value.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+def main(argv: list[str] | None = None) -> int:
+    _load_dotenv()
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if not argv:
+        print(__doc__)
+        return 2
+    cmd, rest = argv[0], argv[1:]
+    if cmd == "prereg-freeze":
+        return _prereg_freeze(rest)
+    if cmd == "prereg-verify":
+        return _prereg_verify(rest)
+    if cmd == "demo":
+        from . import demo
+        return demo.main()
+    if cmd == "verify":
+        return verify_module.main(rest)
+    if cmd == "run":
+        return _run_study(rest)
+    if cmd == "verify-report":
+        return _verify_report(rest)
+    if cmd == "phase0":
+        return _phase0(rest)
+    if cmd == "suite":
+        return _suite(rest)
+    print(__doc__)
+    return 2
+
+
+def _suite(argv: list[str]) -> int:
+    """Run L1 on any of the five benchmarks and write a research-grade evidence
+    bundle (frames.ndjson + self-digested manifest). Offline rehearsal by default;
+    --real loads the dataset, --live grades with a Guard-routed model."""
+    from .phase0 import run_suite
+    benchmark = None
+    out = run_id = model = gateway = prereg_sha = None
+    real = live = False
+    limit = 100
+    max_cost = 300.0
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "--benchmark": benchmark = argv[i + 1]; i += 2
+        elif a == "--out": out = argv[i + 1]; i += 2
+        elif a == "--run-id": run_id = argv[i + 1]; i += 2
+        elif a == "--limit": limit = int(argv[i + 1]); i += 2
+        elif a == "--real": real = True; i += 1
+        elif a == "--live": live = True; i += 1
+        elif a == "--model": model = argv[i + 1]; i += 2
+        elif a == "--gateway": gateway = argv[i + 1]; i += 2
+        elif a == "--prereg-sha256": prereg_sha = argv[i + 1]; i += 2
+        elif a == "--max-cost-usd": max_cost = float(argv[i + 1]); i += 2
+        else: raise SystemExit(f"suite: unknown option {a!r}")
+    if not benchmark:
+        raise SystemExit("suite requires --benchmark (gsm8k|math|gpqa_diamond|humaneval|swebench_verified)")
+    import os
+    from datetime import datetime, timezone
+    run_id = run_id or (f"gradia-wind-tunnel-suite-{benchmark}-" + datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S"))
+    # env fallbacks (from .env) so a filled .env + `suite --benchmark X --real --live` just works
+    model = model or os.environ.get("GRADIA_WT_MODEL")
+    gateway = gateway or os.environ.get("GRADIA_GUARD_GATEWAY_URL")
+    prereg_sha = prereg_sha or os.environ.get("GRADIA_WT_PREREG_SHA256")
+    if max_cost == 300.0 and os.environ.get("GRADIA_WT_MAX_COST_USD"):
+        max_cost = float(os.environ["GRADIA_WT_MAX_COST_USD"])
+    judge = None
+    if live:
+        if not (model and gateway):
+            raise SystemExit("suite --live needs --model and --gateway (or GRADIA_WT_MODEL / GRADIA_GUARD_GATEWAY_URL in .env)")
+        from .llm_judge import AnthropicGuardGrader, LLMJudge
+        judge = LLMJudge(AnthropicGuardGrader(
+            model=model, gateway_base_url=gateway,
+            input_usd_per_mtok=float(os.environ.get("GRADIA_WT_INPUT_USD_PER_MTOK", 5.0)),
+            output_usd_per_mtok=float(os.environ.get("GRADIA_WT_OUTPUT_USD_PER_MTOK", 25.0))))
+    manifest = run_suite(run_id, benchmark, judge=judge, real=real, limit=limit,
+                         out_dir=out, max_cost_usd=max_cost, preregistration_sha256=prereg_sha)
+    print(json.dumps({
+        "run_id": run_id,
+        "mode": "LIVE" if live else ("real_offline_grader" if real else "offline_rehearsal"),
+        "totals": manifest["totals"],
+        "density_by_transform": {k: v["density_per_1000"] for k, v in manifest["density_by_transform"].items()},
+        "frames_chain_head": manifest["frames_chain_head"],
+        "manifest_sha256": manifest["manifest_sha256"],
+    }, indent=2))
+    return 0
+
+
+def _phase0(argv: list[str]) -> int:
+    """Phase-0 (M3): first real exploit-density number under the frozen prereg.
+
+    Default is an OFFLINE rehearsal (simulated grader). Pass --live with --model
+    and --gateway to grade with a real frontier model through the Guard gateway;
+    the provider key stays in the Guard parent process.
+    """
+    from .canonical import write_canonical
+    from .phase0 import run_phase0, verify_phase0
+    benchmark, out, run_id = "gsm8k", None, None
+    real = live = False
+    model = gateway = prereg_sha = None
+    max_cost = 300.0
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "--benchmark": benchmark = argv[i + 1]; i += 2
+        elif a == "--out": out = argv[i + 1]; i += 2
+        elif a == "--run-id": run_id = argv[i + 1]; i += 2
+        elif a == "--real": real = True; i += 1
+        elif a == "--live": live = True; i += 1
+        elif a == "--model": model = argv[i + 1]; i += 2
+        elif a == "--gateway": gateway = argv[i + 1]; i += 2
+        elif a == "--prereg-sha256": prereg_sha = argv[i + 1]; i += 2
+        elif a == "--max-cost-usd": max_cost = float(argv[i + 1]); i += 2
+        else: raise SystemExit(f"phase0: unknown option {a!r}")
+    import os
+    from datetime import datetime, timezone
+    run_id = run_id or ("gradia-wind-tunnel-phase0-" + datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S"))
+    model = model or os.environ.get("GRADIA_WT_MODEL")
+    gateway = gateway or os.environ.get("GRADIA_GUARD_GATEWAY_URL")
+    prereg_sha = prereg_sha or os.environ.get("GRADIA_WT_PREREG_SHA256")
+    if max_cost == 300.0 and os.environ.get("GRADIA_WT_MAX_COST_USD"):
+        max_cost = float(os.environ["GRADIA_WT_MAX_COST_USD"])
+
+    judge = None
+    if live:
+        if not (model and gateway):
+            raise SystemExit("phase0 --live needs --model and --gateway (or GRADIA_WT_MODEL / GRADIA_GUARD_GATEWAY_URL in .env)")
+        from .llm_judge import AnthropicGuardGrader, LLMJudge
+        judge = LLMJudge(AnthropicGuardGrader(
+            model=model, gateway_base_url=gateway,
+            input_usd_per_mtok=float(os.environ.get("GRADIA_WT_INPUT_USD_PER_MTOK", 5.0)),
+            output_usd_per_mtok=float(os.environ.get("GRADIA_WT_OUTPUT_USD_PER_MTOK", 25.0))))
+
+    report = run_phase0(run_id, benchmark_id=benchmark, real_benchmark=real, judge=judge,
+                        max_cost_usd=max_cost, preregistration_sha256=prereg_sha)
+    out_path = Path(out) if out else Path("results") / f"{run_id}.phase0.json"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    write_canonical(out_path, report)
+    print(json.dumps({
+        "path": str(out_path),
+        "mode": "LIVE" if live else "offline_rehearsal",
+        "judge": report["judge"],
+        "L0_density": report["rungs"]["L0_natural_incidence"]["density_per_1000"],
+        "L1_density": report["rungs"]["L1_metamorphic"]["density_per_1000"],
+        "causal_slice": report["causal_slice"] and report["causal_slice"]["conjunction"],
+        "spent_usd": report["spend"]["spent_usd"],
+        "report_sha256": report["report_sha256"],
+        "self_digest_ok": verify_phase0(report),
+    }, indent=2))
+    return 0
+
+
+def _run_study(argv: list[str]) -> int:
+    from .canonical import write_canonical
+    from .experiment import run_study, verify_report
+    benchmark, out, run_id, K = "gsm8k", None, None, 6
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "--benchmark":
+            benchmark = argv[i + 1]; i += 2
+        elif a == "--out":
+            out = argv[i + 1]; i += 2
+        elif a == "--run-id":
+            run_id = argv[i + 1]; i += 2
+        elif a == "--cycles":
+            K = int(argv[i + 1]); i += 2
+        else:
+            raise SystemExit(f"run: unknown option {a!r}")
+    from datetime import datetime, timezone
+    run_id = run_id or ("gradia-wind-tunnel-run-" + datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S"))
+    report = run_study(run_id, benchmark_id=benchmark, K=K)
+    out_path = Path(out) if out else Path("results") / f"{run_id}.report.json"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    write_canonical(out_path, report)
+    v = verify_report(report)
+    print(json.dumps({
+        "path": str(out_path),
+        "evidence_chain_head": report["evidence_chain_head"],
+        "verify": v,
+        "L1_density_per_1000": report["rungs"]["L1_metamorphic"]["density_per_1000"],
+        "causal_slice": report["causal_slice"] and report["causal_slice"]["conjunction"],
+        "convergence": report["convergence"]["classification"],
+        "vault_entries": report["vault"]["n_entries"],
+    }, indent=2))
+    return 0 if v["ok"] else 1
+
+
+def _verify_report(argv: list[str]) -> int:
+    from .canonical import load_json
+    from .experiment import verify_report
+    if len(argv) != 1:
+        raise SystemExit("usage: verify-report REPORT.json")
+    v = verify_report(load_json(Path(argv[0])))
+    print(json.dumps(v, indent=2, sort_keys=True))
+    return 0 if v["ok"] else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

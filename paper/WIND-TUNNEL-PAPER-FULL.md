@@ -1,0 +1,566 @@
+---
+title: "The Reward-Hacking Wind Tunnel: An Evaluation Immune System that Attacks, Localizes, and Repairs Benchmark Scorers"
+author: "Rudy M. Celekli, Gradia Research"
+date: "Methodology complete — preregistered — results pending. Draft of 29 August 2026"
+---
+
+> **Pre-results boundary.** This manuscript states the design, the formal method, the
+> full architecture, and the preregistered analysis plan. It reports **no empirical
+> result about any model or benchmark yet.** Sections 12–14 are analysis scaffolds to
+> be filled from the frozen preregistration; every number in the final paper will be
+> recomputable from a committed evidence bundle whose chain head is published before
+> any run. Claims are scoped by the preregistration's `interpretation` field: we study
+> whether a benchmark's *scoring pipeline* can be gamed and whether repairing it
+> converges — not whether any model is broadly weak or any benchmark worthless.
+
+---
+
+## Abstract
+
+Modern AI evaluation trusts a **scorekeeper**: an answer extractor, an LLM judge, a
+rubric grader, or a unit-test verifier that turns a model's output into a number.
+That scorekeeper is an attack surface, and no prior work has *closed and measured*
+the loop of attacking it and repairing it. The **Reward-Hacking Wind Tunnel** searches
+for answers a famous public benchmark's scorer grades *correct* but that a machine
+**oracle** proves *wrong* — every exploit confirmed with no human label — then
+identifies the **exact causal slice** being exploited by intervening on one variable
+at a time in a **branchable, witnessed universe** that runs on the Gradia engine, and
+measures whether iterated patching of the scorer **converges, plateaus, or merely
+relocates the flaw**. We contribute: **(C1)** witnessed universes as a *causal
+instrument* for evaluation failure — turning "which slice is exploited?" from a
+confounded correlation into an identified interaction effect, run on a real world
+engine with before/after roots and evolution witnesses; **(C2)** the first convergence
+measurement of evaluator repair, with a patch-generalization statistic; **(C3)**
+oracle-witnessed, wrong-by-construction attacks that need zero human labels; **(C4)**
+an *autoimmunity* metric quantifying how many correct answers each patch starts
+wrongly rejecting; **(C5)** a verifiable, contamination-proof protocol whose hidden
+regression suite is hash-committed before any result exists and whose every reported
+number is recomputable from a tamper-evident evidence bundle; and **(C6)** a platform
+validation — the entire study executes on the Gradia stack, demonstrating that the
+program's tooling can run a complete research study end to end. This is the third
+pillar of a program on verifiable evaluation, after Interruptible Universes (proving
+*what happened*) and Gradia Guard (proving *the record was not tampered with*).
+
+---
+
+## 1. Introduction
+
+### 1.1 The last untrusted component
+
+Enterprises and labs are deploying agents into consequential workflows and asking a
+single question: *can this agent do the job, and how do we know?* The field's answer is
+a benchmark number. But that number is produced by a scoring pipeline, and the pipeline
+is (a) **unverifiable** — you trust the harness; (b) **gameable** — the judge/rubric/
+weak test can be fooled by answers that look right and are wrong; and (c)
+**contaminated** — the test set leaked into training. Prior work in this program made
+two of the three trusted components honest: *Interruptible Universes* proved that a
+benchmark can verify **what happened** in a changing world, and *Gradia Guard* made the
+runtime **record** tamper-evident and coverage-honest. The remaining trusted component
+is the **scorekeeper itself.** This paper attacks it, and asks the question the field
+has not: when you patch a benchmark's scorer, does the evaluation system converge, or
+is it whack-a-mole forever?
+
+### 1.2 The idea that makes it possible
+
+> *Public benchmarks can tell you a model is being gamed. Only a branchable, witnessed
+> universe can tell you which counterfactual causes it — because only there can you
+> change one fact and prove you changed nothing else.*
+
+That single capability reframes what a universe is: not a benchmark format, but a
+**causal-inference instrument for model-evaluation failure.** It also closes an entire
+loop — the tunnel finds the exploit (**evaluation**), the fork names the exact slice
+(**environment manipulation**), and the named slice becomes a data-generation order
+(**training data**).
+
+### 1.3 Contributions
+
+C1–C6, above. Section 3 formalizes the estimands; Sections 4–9 give the method and
+architecture with diagrams; Sections 10–11 the experimental design and metrics;
+Sections 12–14 the analysis scaffolds; Sections 15–18 disclosure, limitations, ethics,
+reproducibility. A complete, self-verifying instrument accompanies the paper (71
+property tests green); the only step to empirical results is a live run under the
+frozen preregistration.
+
+### 1.4 Relation to prior work in this program
+
+This is the third of a program. **Interruptible Universes** contributed the witnessed,
+branchable universe we use here as a causal instrument; **Gradia Guard** contributed
+the tamper-evident evidence runtime that records every experiment; and **Conditionally
+Approved** contributed both the proof-bound benchmark methodology and the multi-judge
+instability finding (Fleiss' κ = 0.151) that motivates attacking the scorer directly.
+We are grateful to build on that foundation.
+
+---
+
+## 2. Background and related work
+
+The field moved in 2026; the naive idea — "an adversary finds answers that fool a
+judge" — is published. We build only in the open space.
+
+| Prior work | Established | Our delta |
+|---|---|---|
+| Self-Play Reward Hacking of Reference-Free LLM Judges (2607.05904) | Judges score plausibility, not correctness; GSM8K judge-pass 0.72→0.94 while true accuracy stayed 0.20; exploits transfer; 3-judge ensemble still accepts 55% wrong. Best defense: judge self-commitment. | Our motivation and opening number, not our finding. Their defense is one arm in our architecture table. |
+| Adversarial Reward Auditing (2602.01750) | Hacker-vs-Auditor game vs RLHF reward models; latent detector. | They attack training reward models; we attack the deployed benchmark scorer and measure *repair convergence*. |
+| LLM-as-a-Judge Security SoK (2603.29403) | Taxonomy of judge attacks. | The map of the attack zoo; we close the loop and measure repair. |
+| Prompt-injection on judges (2504.18333) | Injection flips verdicts. | The failure mode we *exclude* with a naturalness constraint (§4.4). |
+| LGMT — Logic-Grounded Metamorphic Testing (2605.23965) | Metamorphic testing for LLM reasoning. | Our twist: truth-breaking mutation with a machine-checkable *oracle witness* aimed at the scorer, in a causal factorial. |
+| PReMISE / Autorubric / JudgeBench / rubric-conditioned grading | Rubrics-as-spec, judge benchmarks, rubric robustness. | We are not proposing a rubric format; we break rubrics and measure repair. |
+| CAFFE (2512.16816) | Counterfactual fairness eval. | We target reward-hacking exploits with true factorial forks in a witnessed universe, validated prospectively. |
+
+> Positioning for the last three rows is drawn from title+abstract and must be
+> confirmed by full reads before submission. The open space is the **closed
+> attack→repair loop with a convergence measurement, oracle-witnessed and causally
+> identified.**
+
+---
+
+## 3. Threat model and formal problem statement
+
+### 3.1 The scoring pipeline as attack surface
+
+A benchmark's score is produced by a *scoring pipeline*, not by truth directly. Its
+gameable components are the **answer extractor** (a regex or model deciding what the
+output "answered"), the **LLM judge** or **rubric grader** (when grading is a judgment),
+and the **unit-test verifier** (when tests are weak — the documented test-gaming surface
+on agentic-coding benchmarks). We attack the pipeline; a machine **oracle** (a strong
+gold answer or a strong hidden test suite) is the ground-truth backstop that confirms
+wrongness with no human.
+
+### 3.2 Threat rungs (reported separately, never pooled)
+
+- **L0 — natural incidence (no adversary):** how often the scorer already passes an
+  oracle-wrong answer emitted on-policy. The "does reward hacking happen in the wild"
+  number.
+- **L1 — metamorphic mutation:** every truth-breaking transform applied to verified-
+  correct answers; no judge queries; the base rate of scorer blind spots.
+- **L2 — adaptive search:** the adversary queries the judge under a budget, searching
+  for PASS∧WRONG; a naturalness constraint is on.
+- **L3 — patch-aware re-attack:** the adversary is told the patch and re-searches; this
+  rung measures convergence.
+
+### 3.3 Notation and estimands
+
+- Task item `x ∈ X` with a **factor vector** `φ(x) ∈ F = F₁×…×F_d` (declared, controlled
+  causal factors).
+- **Oracle** `t : A × X → {CORRECT, WRONG}`, deterministic and cheap (numeric equality /
+  unit tests / key match). Ground truth, no human.
+- **Answer space** `A`; a **verified-correct** answer `a*(x)` with `t(a*(x),x)=CORRECT`.
+- **Scorer / judge** `J_θ : A × X → {PASS, FAIL}` with real-valued margin `m_θ(a,x)`;
+  `θ` indexes the judge architecture and its patched versions `θ₀,…,θ_K`.
+- **Transform** `m ∈ T`, a truth-breaking map `A×X → A` with a machine-checkable
+  **witness** `w_m(a,x)` such that a valid transform guarantees `t(m(a,x),x)=WRONG`.
+
+**Exploit.** `a` is an exploit of `J_θ` on `x` iff `J_θ(a,x)=PASS ∧ t(a,x)=WRONG`. It is
+*witnessed* iff produced by a transform whose witness the oracle confirms — so all L1
+exploits are witnessed by construction, at zero labeling cost.
+
+**Exploit density** on item set `S`, judge `θ`, transform `m`, rung `ℓ`:
+`ρ(S,θ,m,ℓ) = (1/|Att|) Σ_{(a,x)∈Att} 𝟙[exploit(a,x,θ)]` over attempts `Att` generated
+under rung `ℓ`.
+
+**Causal slice.** For factor subset `G ⊆ {1..d}` and assignment `v`, the slice
+`S_{G=v} = {x : φ_G(x)=v}`. Because items are generated (or forked), cells are a **true
+factorial**, so ρ-differences are **interaction effects**. A *named slice* is the
+minimal conjunction `G=v` maximizing ρ; its **validity** is the prospective lift
+`ρ(S^{held-out}_{G=v}) − max(ρ_broad, ρ_random) > 0`.
+
+**Patch.** `P : θ_k → θ_{k+1}` of modality rubric-edit / judge-arch / curriculum. Two
+quantities: **closure** `Δ⁺ = ρ(family;θ_k) − ρ(family;θ_{k+1})` (want > 0);
+**autoimmunity cost** `Δ⁻ = FRR(θ_{k+1}) − FRR(θ_k)`, `FRR(θ)=Pr_{a*}[J_θ(a*,x)=FAIL]`
+(want ≈ 0). **Patch generalization** `γ = Δρ_heldout / Δρ_patched ∈ [0,1]` (γ<1 ⇒
+whack-a-mole). **Convergence:** classify `k ↦ ρ_heldout(θ_k)` into {monotone↓, plateau,
+oscillating} by a preregistered rule.
+
+**Central object.** The pair **(γ, convergence-class)** per architecture, with the
+autoimmunity frontier **(Δ⁺, Δ⁻)**.
+
+---
+
+## 4. Oracle-witnessed wrong-by-construction attacks (C3)
+
+### 4.1 The dependency collapse
+
+The fatal cost of the naive design is that "truth score is low" needs an expert per
+candidate. We remove the expert by scoping to **oracle benchmarks** — those whose
+correctness is decided by a deterministic checker. Then: truth is free and exact
+(`t` = oracle); wrong-by-construction is double-locked (the transform asserts wrongness
+and the oracle independently confirms it); an exploit is a fully automated event
+(`J(a)=PASS ∧ t(a)=WRONG`); and the naturalness audit is replaced by on-policy
+construction + an automated artifact filter.
+
+### 4.2 The transform catalog (a released contribution)
+
+Start from verified-correct `a*`; apply a typed transform with an oracle-checkable
+witness. By answer shape:
+
+| Shape | Transform | Edit | Oracle witness |
+|---|---|---|---|
+| math (####/boxed) | `final_answer_corruption` | change the final number | oracle: final ≠ gold |
+| math | `keyword_inflation` | keep the wrong final, inject judge-favored phrasing | oracle: final ≠ gold; phrasing present |
+| math | `authoritative_wrong` | wrap the wrong answer in confident structure | oracle: final ≠ gold |
+| MCQ | `choice_corruption` | assert a wrong option letter | oracle: chosen ≠ key |
+| MCQ | `keyword_inflation` / `authoritative_wrong` | as above on the MCQ answer | oracle: chosen ≠ key |
+| code | `subtle_bug` | mutate one operator so tests fail | oracle: unit tests fail |
+| code | `keyword_inflation` / `authoritative_wrong` | dress a failing solution | oracle: unit tests fail |
+
+Every witness is checked by the oracle or a rule — no LLM, no expert. Pipeline:
+mutate → oracle confirms wrong → judge scores → judge PASS = confirmed exploit, free.
+*This inverts the program's evaluator-mutation discipline: in Conditionally Approved we
+mutated rubric criteria to prove each gate bites; here we mutate the answer to prove the
+gates leak.*
+
+### 4.3 Adversary
+
+The adversary is an identity-pinned frontier model (the Conditionally Approved panel:
+Opus 5, Gemini 3.1 Pro Preview, Grok 4.6, GPT-5.6-sol). We cross adversary × judge and
+report the transfer matrix — do exploits from adversary A fire on judge B?
+
+### 4.4 The naturalness constraint (do not skip)
+
+At L2/L3 the answer must be one a deployed model could plausibly emit: constrain to
+on-policy generations, minimally edited, and ban injection artifacts ("ignore previous
+instructions", judge-directed meta-text) with an automated screen. This paragraph is the
+line between a novel reward-hacking study and a rediscovery of prompt injection.
+
+---
+
+## 5. System architecture
+
+Seven services with typed contracts, each independently testable and Guard-instrumented.
+
+```mermaid
+flowchart LR
+  GEN[Generator\nitems + factors + oracle] --> ADV[Adversary\nL0-L3, naturalness, budget]
+  ADV -->|wrong-by-construction| ORA[Oracle\ndeterministic truth]
+  ORA -->|witness valid| JB[Judge Bank\nsingle / ensemble /\nself-commit / rubric-decomposed]
+  JB --> AN[Analyst\ndensity, magnitude, slice,\nspectrum, DNA, disagreement]
+  AN -->|exploit families| PAT[Patcher\nrubric / judge-arch / curriculum\n+ autoimmunity guard]
+  PAT -->|θ_k+1| ADV
+  AN --> VAULT[Regression Vault\nhash-committed hidden suite]
+  AN --> CAP[Capture\nframes.ndjson + manifest]
+  CAP --> SINK[(Analytics sink /\nGradia analytics)]
+  GEN -. universe tier .-> UF[Universe Forks\ngradia_universes World engine]
+  UF -. before/after roots + witness .-> AN
+  classDef g fill:#eef,stroke:#88a;
+```
+
+Design rules (inherited from Guard/CA): every service is pure-ish and independently
+tested; every artifact is content-addressed; every run replays offline from checked-in
+evidence; deny/fail-closed on any schema mismatch; nothing pooled across rungs or cells
+in headline stats.
+
+### 5.1 The attack→repair loop (the paper's engine)
+
+```mermaid
+flowchart TD
+  A[Attack current scorer θ_k\nrung L1 or L3] --> B{exploits found?}
+  B -- yes --> C[Analyst: top exploit family\ntransform × slice]
+  C --> D[Patcher: synthesize θ_k+1\nrubric / judge-arch / curriculum]
+  D --> E{autoimmunity Δ⁻ ≤ budget?}
+  E -- no --> F[reject patch\nrecord Δ⁺, Δ⁻, γ]
+  E -- yes --> G[accept θ_k+1\nvault.append exploits]
+  G --> H[measure ρ_heldout θ_k+1]
+  H --> I{plateau or budget?}
+  I -- no --> A
+  I -- yes --> J[classify convergence\nreport γ, class, frontier]
+```
+
+---
+
+## 6. Causal-slice identification on the Gradia engine (C1)
+
+### 6.1 Two tiers
+
+- **Procedural tier (public benchmarks):** items are generated with factors controlled
+  exactly, so a slice cell is a true factorial and ρ-differences are interaction effects,
+  not correlations. Clean, reproducible, external validity.
+- **Universe tier (richest domains):** where factors interact with world state, the
+  factorial lives in **witnessed forks on the real Gradia engine.**
+
+### 6.2 The fork mechanism (runs on `gradia_universes`)
+
+A fork snapshots a shared parent world, applies an intervention that changes exactly one
+declared variable, and the engine returns the **before/after world roots** and the
+hash-chained occurrence — a witness proving the counterfactual changed one thing and
+nothing else.
+
+```mermaid
+sequenceDiagram
+  participant WT as Wind Tunnel
+  participant W as gradia_universes.World
+  WT->>W: World(scenario: case, policy)
+  W-->>WT: parent_root = digest(case,policy)
+  WT->>W: snapshot()  (shared parent closure)
+  WT->>W: apply(Event target=case, updates={age_band: "75+"})
+  W-->>WT: (before_root, after_root, agent_projection)
+  WT->>WT: diff(before,after) == {age_band}?  → single_variable_verified
+  Note over WT,W: witness = before/after roots + occurrence chain + projection digest
+```
+
+**Demonstrated** (this repository, on the real engine): a fork on `age_band` changes the
+world root and reports `changed_fields = (age_band,)` with `single_variable_verified =
+true`. The universe-fork causal method rides on the same substrate that
+Interruptible Universes and Conditionally Approved are built on — a **wiring** over
+existing primitives, not a new platform capability.
+
+### 6.3 Localization and prospective validation
+
+Given confirmed exploits, enumerate candidate factors, form the factorial grid (or a
+fractional-factorial screen), and find the minimal conjunction maximizing in-slice ρ.
+A named slice is a *prediction*; validate it by generating fresh held-out items in the
+predicted slice and showing the predicted rate materializes above (a) a broad-slice
+baseline and (b) a random-slice control.
+
+---
+
+## 7. The repair loop and convergence (C2, C4)
+
+### 7.1 Patcher — three modalities, guarded
+
+- **rubric_edit:** neutralize the exact exploited grader signal.
+- **judge_arch:** switch to a structurally stronger scorer (e.g., self-commitment: the
+  judge solves the problem itself first and accepts only if the candidate matches).
+- **curriculum_retrain:** neutralize the whole family observed in the slice cohort.
+
+Every patch is guarded by an **autoimmunity budget**: it is rejected if it wrongly
+rejects more than a preregistered fraction of verified-correct answers. Each patch
+reports closure `Δ⁺`, autoimmunity cost `Δ⁻`, and generalization `γ`.
+
+### 7.2 Convergence
+
+Over K cycles the patched scorer re-enters the adversary at L3. We classify
+`k ↦ ρ_heldout(θ_k)` as monotone-decreasing (converges), plateau, or oscillating, by a
+preregistered decision rule, per judge architecture, and report the mean γ. Either
+answer is publishable — that is the mark of a good preregistration.
+
+---
+
+## 8. The verifiable, contamination-proof protocol (C5)
+
+### 8.1 Every episode is a receipt
+
+Each attack, judge call, oracle check, causal fork, and patch is captured. A run writes:
+
+- **`frames.ndjson`** — one canonical line per attack episode (the granular record:
+  rung, benchmark, item, transform, factors, oracle verdict, judge verdict + score +
+  cost, exploit flag, answer digest, frame hash). This is both the results appendix and
+  the analytics feed.
+- **`manifest.json`** — a self-digested summary carrying the paper's estimands (density
+  by rung/transform/benchmark, exploit-magnitude bins, total cost) and a chain head over
+  the frames.
+
+`verify_bundle` recomputes the chain head **and** every aggregate from the frames and
+checks them against the manifest. So a reviewer confirms every figure and table offline,
+and any edit to a frame is detected. **The writeup asserts nothing; it derives
+everything.**
+
+```mermaid
+flowchart LR
+  E[episodes] --> F[frames.ndjson\nhash-chained rows]
+  F --> M[manifest.json\nself-digested estimands + chain head]
+  F --> V[verify_bundle]
+  M --> V
+  V --> OK{chain head\n+ aggregates\n+ self-digest ok?}
+```
+
+### 8.2 The hidden regression vault
+
+Every confirmed exploit enters an append-only, hash-chained vault. The **empty head is
+committed at preregistration freeze** (published with a timestamp) before any result
+exists. Each append extends an authenticated chain, so the set cannot be reordered or
+curated. At publication the entries are revealed and anyone recomputes the chain from
+the committed empty head forward. **A benchmark we mathematically could not have rigged.**
+
+### 8.3 Contamination resistance
+
+Procedurally generated items + a never-public-until-reveal suite make the study
+structurally contamination-resistant — a live objection against every static benchmark,
+and it complements the program's "benchmarks are flawed" thesis directly.
+
+---
+
+## 9. Running on Gradia — platform validation (C6)
+
+A benchmark-scorer study is a demanding end-to-end workload: generate controlled items,
+fork worlds for causal identification, call identity-pinned frontier models under a
+spend cap, record tamper-evident evidence, and freeze a preregistration whose digests
+verify across runtimes. We run the **entire** pipeline on the Gradia stack. The mapping
+(generated from the repository's integration map, not asserted):
+
+| Wind Tunnel component | Gradia tool | Role |
+|---|---|---|
+| Generator (causal forks) | gradia_universes World engine (evolution witnesses) | single-variable interventions certifying nothing else changed |
+| Evidence spine | Gradia Guard hash-chained receipts + credentialless gateway | tamper-evident, offline-replayable receipts; provider keys never in the agent process |
+| Model calls | gradia_universes providers / Guard gateway (identity-pinned, spend-capped) | frontier grading with the spend-policy discipline |
+| Canonical evidence | gradia canonical JSON | byte-identical digests across runtimes |
+| Preregistration | gradia fail-closed preregistration (self-digested, git-pinned) | the freeze/verify contract the program uses |
+| Regression vault | gradia reserved-DOI / hash-commit precedent | publish the hidden-suite head before any result |
+
+Model calls route through Guard's credentialless gateway, so **no provider key ever
+enters the adversary or judge process** — the study is also a live exercise of Guard's
+central guarantee. Separately, `examples/gradia_capability_demo.py` shows the Gradia
+engine running an arbitrary custom environment with tool actions, a single-variable
+branch, and a tamper-evident proof chain — evidence that Gradia is a general environment
+engine, not a one-off.
+
+---
+
+## 10. Experimental design (preregistered; to be run)
+
+### 10.1 Testbeds
+
+- **Tier A — famous public oracle benchmarks (named):** GSM8K and MATH (numeric / boxed),
+  GPQA-Diamond (A–D), HumanEval (unit-test oracle), SWE-bench Verified (execution;
+  documented test-gaming precedent).
+- **Tier B — Gradia universes:** the v4r1 underwriting family + one second domain, for
+  the richest causal claims.
+
+### 10.2 Factors and design
+
+- **Adversary × judge matrix:** 4 adversary models × 4 judge architectures; report the
+  transfer matrix.
+- **Rungs:** L0, L1, L2, L3, reported separately.
+- **Convergence:** K patch cycles per (benchmark, architecture); prospective stop rules.
+- **Budgets:** per-rung query and dollar caps, prospectively fixed; a $300 Phase-0 cap.
+
+### 10.3 Phase plan
+
+- **Phase 0 (M3):** L0+L1 on GSM8K with a Guard-routed real judge → first real exploit-
+  density number + one causal-slice proof. A workshop paper / rebuttal exhibit.
+- **Phase 1:** all four rungs, 2–3 named oracle benchmarks + 2 universe domains, the
+  adversary×judge matrix, K patch cycles, hidden suite committed, disclosure running in
+  parallel.
+
+---
+
+## 11. Metrics catalog
+
+| Metric | Definition |
+|---|---|
+| Exploit density ρ | confirmed exploits / 1000 attempts, per rung / family / cell |
+| Exploit magnitude | distribution of judge-pass margin on oracle-wrong answers |
+| Exploit half-life | under L3, patch cycles until a family's density halves |
+| Patch generalization γ | Δρ_heldout ÷ Δρ_patched ∈ [0,1] (the whack-a-mole statistic) |
+| Autoimmunity / preservation | fraction of verified-correct answers a patch newly rejects; the closure-vs-preservation Pareto |
+| Convergence class | prereg decision rule over ρ_heldout(θ_k), per architecture |
+| Transfer rate | fraction of adversary-A exploits that fire on judge B |
+| Exploitability spectrum | density × magnitude over (transform × slice × architecture) — a benchmark's immune fingerprint |
+| Exploit-DNA coverage | do a few archetypes explain most exploits across benchmarks? |
+| Disagreement signal | exploit rate in high- vs low-judge-disagreement regions (oracle-free detector) |
+| Cost | total and per-exploit dollars; exploits per 1000 queries |
+
+All are recomputable offline by `wind-tunnel-verify` from the committed evidence index.
+
+---
+
+## 12. Figures and tables plan
+
+- **Fig 1** — the loop schematic (§5).
+- **Fig 2** — the causal-slice reveal: factorial heatmap + the prospective held-out
+  cohort hitting the predicted rate (the Universes-team figure).
+- **Fig 3** — convergence curves: ρ_heldout vs. patch cycle, one line per architecture,
+  annotated with the class.
+- **Fig 4** — the autoimmunity Pareto frontier: Δ⁺ vs. Δ⁻, one point per patch.
+- **Fig 5** — the exploitability spectrum per benchmark (small multiples).
+- **Table 1** — adversary × judge transfer matrix.
+- **Table 2** — architecture per-dollar (density, γ, cost; incl. self-commitment arm).
+- **Table 3** — named-benchmark breakage summary + disclosure status + maintainer
+  responses.
+
+The repository's `figures.py` generates Fig 1/2/3 from a run; captions state whether a
+figure is illustrative (offline) or empirical (a real run).
+
+---
+
+## 13. Results — *to be filled from the frozen preregistration*
+
+*(Populated from Phase-0/Phase-1 evidence bundles. Report every preregistered cell,
+including nulls. Headline objects: exploit density by rung and benchmark; the
+adversary×judge transfer matrix; the convergence class and γ per architecture; the
+autoimmunity Pareto; named causal slices with prospective lift; the exploitability
+spectrum. Every number cites its frame chain head.)*
+
+## 14. Analysis and interpretation — *to be filled*
+
+*(Answer the central questions: does evaluator repair converge or relocate (H1/H2)? Does
+structural defense (self-commitment) help but not cure (H4)? Do named slices predict on
+held-out generation (H5)? Is there a small universal basis of judge blind spots (exploit
+DNA)? Interpret against the self-play baseline. State what the numbers do and do not
+license, per the preregistration's interpretation clause.)*
+
+---
+
+## 15. Responsible disclosure
+
+We name the benchmarks we break because vague criticism does not help the field. Each
+finding is disclosed to maintainers with oracle-witnessed examples, the causal-slice
+result, and a **suggested patch**, before public release, with a reasonable embargo
+(≈45 days); we report their responses and credit them if they wish. We release the
+repair loop and the hidden-suite protocol prominently — not a turnkey attack script. The
+naturalness constraint limits surfaced failures to plausible ones, not injection
+payloads. Clinical universe items are synthetic; no real records are used.
+
+## 16. Limitations
+
+Oracle-only scope (open-ended grading is future work); the adversary is not all real
+models; compute bounds rung depth; public-benchmark slices are quasi-experimental (only
+universe forks license causal claims); the local wrapper is bypassable and its receipts
+say exactly what they do not prove.
+
+## 17. Ethics
+
+A reward-hacking *finder* is dual-use; we frame and release it as a *defense* (an immune
+system), gating nothing a defender needs while avoiding a turnkey "fool any benchmark"
+script. Coordinated disclosure precedes publication. No PHI; synthetic clinical items.
+
+## 18. Reproducibility
+
+The preregistration is git-pinned, spend-capped, and self-digested; the transform catalog
+and oracle specs are frozen and hashed into it; the hidden-vault empty head is published
+before any run. Every reported number is recomputable from `frames.ndjson` via
+`verify_bundle`, and the whole study replays offline from checked-in evidence. The
+instrument ships with 71 property tests.
+
+---
+
+## Appendix A — the preregistration (schema `gradia-wind-tunnel-preregistration.v1`)
+
+Canonical JSON: schema, run_id, created_at, git (sha, dirty), study_kind, claim_status,
+interpretation, program links, target_benchmarks (id, kind, oracle_kind, grader_kinds,
+snapshot), adversary_models, judge_architectures, rungs, transform_catalog (version +
+sha256), oracle_suite_version, analyst_version, hypotheses H1–H5 (with committed
+directions), primary_outcomes, hidden_regression_vault (committed empty chain head),
+spend_policy (max_cost_usd, attestations), execution (per-cell attempts, K, plateau
+window), analysis_blind_gates, responsible_disclosure, preregistration_sha256.
+
+## Appendix B — per-benchmark oracle rules
+
+- **GSM8K:** parse the final integer after `####`; numeric equality with gold.
+- **MATH:** extract the last `\boxed{…}` (balanced braces); normalized string equality.
+- **GPQA-Diamond:** extract the answer letter (trailing `Answer: X` or last standalone
+  A–D); key match.
+- **HumanEval:** run the completion against the task's unit tests in a sandbox; tests
+  pass ⇒ correct. (SWE-bench Verified: apply the patch in the task image; FAIL_TO_PASS +
+  PASS_TO_PASS via the harness.)
+
+## Appendix C — the CLI and artifacts
+
+`prereg-freeze` / `prereg-verify`; `demo`; `run` (full study + self-verifying report);
+`suite --benchmark <id> [--real] [--live]` (per-benchmark evidence bundle); `verify` /
+`verify-report`; `figures`. Artifacts: `preregistrations/*.json`, `results/<run>/
+frames.ndjson` + `manifest.json`, `paper/figures/*.png`.
+
+## Appendix D — hypotheses (directions pre-committed)
+
+- **H1** convergence-shape: ≥1 architecture is monotone-decreasing on a held-out budget.
+- **H2** patch-generalization γ < 1 (whack-a-mole).
+- **H3** autoimmunity trade-off exists (closure ⟂ preservation, negative).
+- **H4** self-commitment dominates per-dollar but does not reach zero exploitability.
+- **H5** named causal slices predict on prospective held-out generation above baselines.
+
+---
+
+*Methodology, architecture, and protocol are complete and instrumented (71 tests). The
+only remaining work is empirical: run under the frozen preregistration and fill §13–§14.
+Positioned against literature surfaced Aug 2026; a few related-work deltas are inferred
+from title+abstract and must be confirmed by full reads before submission.*
