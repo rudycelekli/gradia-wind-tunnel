@@ -7,6 +7,8 @@
     gradia-wind-tunnel phase0 [--benchmark gsm8k] [--real] [--live --model M --gateway URL]
     gradia-wind-tunnel suite  [--benchmark gsm8k] [--rung L1|L2] [--real] [--live] [--limit N]
     gradia-wind-tunnel localize --benchmark math [--real] [--live] [--limit N]  # witnessed causal slice
+    gradia-wind-tunnel regime2  --benchmark hle  [--real] [--live] [--limit N]  # oracle-LESS audit (no key)
+    gradia-wind-tunnel swebench-check                                          # SWE-bench readiness ladder
     gradia-wind-tunnel demo                     # offline end-to-end walkthrough
     gradia-wind-tunnel verify RUN.json          # recompute a run-log chain head
 """
@@ -100,6 +102,10 @@ def main(argv: list[str] | None = None) -> int:
         return _suite(rest)
     if cmd == "localize":
         return _localize(rest)
+    if cmd == "regime2":
+        return _regime2(rest)
+    if cmd == "swebench-check":
+        return _swebench_check(rest)
     print(__doc__)
     return 2
 
@@ -348,6 +354,102 @@ def _localize(argv: list[str]) -> int:
         "self_digest_ok": verify_localization(rep),
     }, indent=2))
     return 0
+
+
+def _build_live_judge(model, gateway, rubric=None):
+    import os
+    from .llm_judge import AnthropicGuardGrader, LLMJudge
+    prov = AnthropicGuardGrader(
+        model=model, gateway_base_url=gateway,
+        input_usd_per_mtok=float(os.environ.get("GRADIA_WT_INPUT_USD_PER_MTOK", 5.0)),
+        output_usd_per_mtok=float(os.environ.get("GRADIA_WT_OUTPUT_USD_PER_MTOK", 25.0)))
+    from .llm_judge import DEFAULT_RUBRIC
+    return LLMJudge(prov, rubric=rubric or DEFAULT_RUBRIC)
+
+
+def _regime2(argv: list[str]) -> int:
+    """Oracle-LESS audit (Regime 2): metamorphic invariance + monotonicity + bias
+    probes against the judge, plus Fleiss' kappa over a judge bank — no answer key."""
+    import os
+    from datetime import datetime, timezone
+    from .benchmark_suite import build_benchmark
+    from .canonical import write_canonical
+    from .oracle_less import run_regime2, verify_regime2
+    from .transforms import FAVORED_PHRASES
+    benchmark = out = run_id = model = gateway = prereg_sha = None
+    real = live = False
+    limit = 24
+    max_cost = 300.0
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "--benchmark": benchmark = argv[i + 1]; i += 2
+        elif a == "--out": out = argv[i + 1]; i += 2
+        elif a == "--run-id": run_id = argv[i + 1]; i += 2
+        elif a == "--limit": limit = int(argv[i + 1]); i += 2
+        elif a == "--real": real = True; i += 1
+        elif a == "--live": live = True; i += 1
+        elif a == "--model": model = argv[i + 1]; i += 2
+        elif a == "--gateway": gateway = argv[i + 1]; i += 2
+        elif a == "--prereg-sha256": prereg_sha = argv[i + 1]; i += 2
+        elif a == "--max-cost-usd": max_cost = float(argv[i + 1]); i += 2
+        else: raise SystemExit(f"regime2: unknown option {a!r}")
+    if not benchmark:
+        raise SystemExit("regime2 requires --benchmark (gsm8k|math|gpqa_diamond|humaneval|hle)")
+    run_id = run_id or (f"gradia-wind-tunnel-regime2-{benchmark}-" + datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S"))
+    model = model or os.environ.get("GRADIA_WT_MODEL")
+    gateway = gateway or os.environ.get("GRADIA_GUARD_GATEWAY_URL")
+    prereg_sha = prereg_sha or os.environ.get("GRADIA_WT_PREREG_SHA256")
+    if max_cost == 300.0 and os.environ.get("GRADIA_WT_MAX_COST_USD"):
+        max_cost = float(os.environ["GRADIA_WT_MAX_COST_USD"])
+    bench = build_benchmark(benchmark)
+    if real:
+        items = bench.items(seed=20260829, limit=limit)
+    elif hasattr(bench, "offline_samples"):
+        items = bench.offline_samples(seed=1)
+    else:
+        raise RuntimeError(f"{benchmark}: no offline samples; use --real")
+    if live:
+        if not (model and gateway):
+            raise SystemExit("regime2 --live needs --model and --gateway (or the .env fallbacks)")
+        judge = _build_live_judge(model, gateway)
+        # judge bank = same model under strict / lenient / neutral rubrics (real disagreement)
+        bank = [
+            _build_live_judge(model, gateway, "Grade STRICTLY. First line 'VERDICT: PASS' only if fully correct AND rigorous, else 'VERDICT: FAIL'."),
+            _build_live_judge(model, gateway, "Grade GENEROUSLY. First line 'VERDICT: PASS' if the answer is broadly on the right track, else 'VERDICT: FAIL'."),
+            _build_live_judge(model, gateway),
+        ]
+    else:
+        from .llm_judge import LLMJudge, SimulatedGraderProvider
+        from .judges import KeywordGamingJudge
+        judge = LLMJudge(SimulatedGraderProvider())
+        bank = [KeywordGamingJudge(FAVORED_PHRASES[:2]),
+                KeywordGamingJudge(FAVORED_PHRASES[1:3]),
+                KeywordGamingJudge(FAVORED_PHRASES[2:])]
+    rep = run_regime2(run_id, bench, items, judge, judge_bank=bank,
+                      max_cost_usd=max_cost, preregistration_sha256=prereg_sha)
+    out_path = Path(out) if out else Path("results") / f"{run_id}.regime2.json"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    write_canonical(out_path, rep)
+    print(json.dumps({
+        "path": str(out_path),
+        "mode": "LIVE" if live else ("real_offline_grader" if real else "offline_rehearsal"),
+        "benchmark": benchmark,
+        "aggregate": rep["aggregate"],
+        "fleiss_kappa_over_bank": rep["fleiss_kappa_over_bank"],
+        "spent_usd": rep["spend"]["spent_usd"],
+        "self_digest_ok": verify_regime2(rep),
+    }, indent=2))
+    return 0
+
+
+def _swebench_check(argv: list[str]) -> int:
+    """Print the SWE-bench readiness ladder: executor (Docker/Gradia), the swebench
+    package, and dataset access. Says exactly what to bring up before a real run."""
+    from .swebench_harness import readiness_report
+    rep = readiness_report(try_dataset=("--no-dataset" not in argv))
+    print(json.dumps(rep, indent=2))
+    return 0 if rep["ready_to_execute"] else 1
 
 
 if __name__ == "__main__":

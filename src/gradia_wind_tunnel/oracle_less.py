@@ -187,3 +187,80 @@ def regime2_status() -> dict[str, Any]:
         "hypotheses": ["H6", "H7"],
         "status": "instrument v1 — offline-tested; preregister before any Regime-2 run",
     }
+
+
+# --- runnable Regime-2 orchestrator + self-digested bundle -------------------
+def _git_sha_r2() -> str:
+    import subprocess
+    try:
+        return subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip() or "{{GIT_SHA}}"
+    except Exception:
+        return "{{GIT_SHA}}"
+
+
+def run_regime2(run_id: str, bench, items, judge, *, judge_bank: list | None = None,
+                seed: int = 20260829, max_cost_usd: float = 300.0,
+                preregistration_sha256: str | None = None) -> dict[str, Any]:
+    """Oracle-LESS audit over a cohort: metamorphic invariance + monotonicity +
+    verbosity bias against the primary judge, and Fleiss' kappa over an optional
+    judge bank. No answer key is used anywhere. Emits a self-digested bundle."""
+    from datetime import datetime, timezone
+    from .canonical import digest
+
+    def _spent() -> float:
+        js = [judge] + list(judge_bank or [])
+        return round(sum(getattr(j, "total_cost_usd", 0.0) for j in js), 4)
+
+    audits: list[dict] = []
+    kappa_counts: list[list[int]] = []
+    for idx, item in enumerate(items):
+        if _spent() > max_cost_usd:
+            break
+        answer = getattr(item, "correct_answer_text", None) or getattr(item, "question", "")
+        question = getattr(item, "question", "")
+        au = audit_item(judge, answer, question, seed=seed + idx)
+        au["item_id"] = getattr(item, "item_id", f"item-{idx}")
+        audits.append(au)
+        if judge_bank:
+            n_pass = sum(1 if _score(j, answer, question)[0] else 0 for j in judge_bank)
+            kappa_counts.append([n_pass, len(judge_bank) - n_pass])
+
+    n = max(1, len(audits))
+    aggregate = {
+        "n_items": len(audits),
+        "mean_invariance_violation_rate": round(sum(a["invariance_violation_rate"] for a in audits) / n, 4),
+        "mean_monotonicity_violation_rate": round(sum(a["monotonicity_violation_rate"] for a in audits) / n, 4),
+        "verbosity_bias_rate": round(sum(1 for a in audits if a["verbosity_bias"]) / n, 4),
+        "any_violation_rate": round(sum(1 for a in audits if a["any_violation"]) / n, 4),
+    }
+    kappa = fleiss_kappa(kappa_counts) if kappa_counts else None
+
+    body: dict[str, Any] = {
+        "schema": "gradia-wind-tunnel-regime2.v1",
+        "run_id": run_id,
+        "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "git_sha": _git_sha_r2(),
+        "preregistration_sha256": preregistration_sha256 or "{{FROZEN_PREREG_SHA256}}",
+        "benchmark_id": getattr(bench, "benchmark_id", "?"),
+        "judge": getattr(judge, "name", judge.__class__.__name__),
+        "judge_bank_size": len(judge_bank or []),
+        "fleiss_kappa_over_bank": kappa,
+        "spend": {"max_cost_usd": max_cost_usd, "spent_usd": _spent()},
+        "aggregate": aggregate,
+        "sample_audits": audits[:5],
+        "interpretation": (
+            "Oracle-LESS audit (Regime 2): scorer defects detected with NO answer "
+            "key. Invariance/monotonicity/bias violation rates are defects regardless "
+            "of the unknown ground truth; Fleiss' kappa over the judge bank is oracle-"
+            "free reliability. The PROVABLE form of the invariance relation is a "
+            "witnessed single-variable universe fork (see the `localize` command)."),
+        "status": regime2_status(),
+    }
+    body["report_sha256"] = digest(body)
+    return body
+
+
+def verify_regime2(body: dict[str, Any]) -> bool:
+    from .canonical import digest
+    stored = body.get("report_sha256")
+    return stored == digest({k: v for k, v in body.items() if k != "report_sha256"})
