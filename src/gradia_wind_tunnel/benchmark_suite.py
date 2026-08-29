@@ -88,15 +88,26 @@ class MathBenchmark:
         return out
 
     def _math_items(self, limit: int) -> list[GradedItem]:
+        # hendrycks/competition_math was served a takedown on HF; try current mirrors.
         from datasets import load_dataset
-        ds = load_dataset("hendrycks/competition_math", split=f"test[:{limit}]")
+        ds = None
+        for mid in ("DigitalLearningGmbH/MATH-lighteval", "HuggingFaceH4/MATH-500",
+                    "nlile/hendrycks-MATH", "hendrycks/competition_math"):
+            try:
+                ds = load_dataset(mid, split=f"test[:{limit}]"); break
+            except Exception:
+                continue
+        if ds is None:
+            raise RuntimeError("MATH: no mirror resolved; set a current HF MATH id in _math_items.")
         out = []
         for i, r in enumerate(ds):
-            boxed = rb.math_extract_boxed(r["solution"]) or ""
+            solution = r.get("solution") or r.get("answer") or ""
+            problem = r.get("problem") or r.get("question") or ""
+            boxed = rb.math_extract_boxed(solution) or str(r.get("answer") or "")
             out.append(GradedItem(
-                item_id=f"math-{i:05d}", question=r["problem"],
-                correct_answer_text=r["solution"],
-                factors={"level": r.get("level"), "type": r.get("type"), "observational": True},
+                item_id=f"math-{i:05d}", question=problem,
+                correct_answer_text=solution,
+                factors={"level": r.get("level"), "type": r.get("type") or r.get("subject"), "observational": True},
                 gold=boxed))
         return out
 
