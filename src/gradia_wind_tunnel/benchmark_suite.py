@@ -379,6 +379,9 @@ def build_benchmark(benchmark_id: str) -> Benchmark:
         return SWEBenchmark()
     if benchmark_id == "hle":
         return HLEBenchmark()
+    if benchmark_id == "agent_env":
+        raise ValueError("agent_env is the agentic env-state archetype (state-checker grader, "
+                         "not an LLM-judge answer grader); run it with `gradia-wind-tunnel agentenv`.")
     raise ValueError(f"unknown benchmark {benchmark_id!r}")
 
 

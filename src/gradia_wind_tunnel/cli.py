@@ -9,6 +9,7 @@
     gradia-wind-tunnel localize --benchmark math [--real] [--live] [--limit N]  # witnessed causal slice
     gradia-wind-tunnel regime2  --benchmark hle  [--real] [--live] [--limit N]  # oracle-LESS audit (no key)
     gradia-wind-tunnel swebench-check                                          # SWE-bench readiness ladder
+    gradia-wind-tunnel agentenv [--tasks N]                                     # agentic env-state reward-hacking
     gradia-wind-tunnel demo                     # offline end-to-end walkthrough
     gradia-wind-tunnel verify RUN.json          # recompute a run-log chain head
 """
@@ -106,6 +107,8 @@ def main(argv: list[str] | None = None) -> int:
         return _regime2(rest)
     if cmd == "swebench-check":
         return _swebench_check(rest)
+    if cmd == "agentenv":
+        return _agentenv(rest)
     print(__doc__)
     return 2
 
@@ -450,6 +453,42 @@ def _swebench_check(argv: list[str]) -> int:
     rep = readiness_report(try_dataset=("--no-dataset" not in argv))
     print(json.dumps(rep, indent=2))
     return 0 if rep["ready_to_execute"] else 1
+
+
+def _agentenv(argv: list[str]) -> int:
+    """Agentic environment-state scoring: the reward-hacking archetype. Runs the
+    hack catalog against every task (exploit = weak checker PASS but oracle FAIL)
+    and witnessed single-variable localization for each hack. Deterministic,
+    offline, fully recomputable — no Docker, no live model."""
+    import os
+    from datetime import datetime, timezone
+    from .agent_env import run_agent_env
+    out = run_id = prereg_sha = None
+    n_tasks = 25
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "--out": out = argv[i + 1]; i += 2
+        elif a == "--run-id": run_id = argv[i + 1]; i += 2
+        elif a == "--tasks": n_tasks = int(argv[i + 1]); i += 2
+        elif a == "--prereg-sha256": prereg_sha = argv[i + 1]; i += 2
+        else: raise SystemExit(f"agentenv: unknown option {a!r}")
+    run_id = run_id or ("gradia-wind-tunnel-agentenv-" + datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S"))
+    prereg_sha = prereg_sha or os.environ.get("GRADIA_WT_PREREG_SHA256")
+    res = run_agent_env(run_id, n_tasks=n_tasks, out_dir=out, preregistration_sha256=prereg_sha)
+    m, loc = res["manifest"], res["localization"]
+    print(json.dumps({
+        "out_dir": res["out_dir"],
+        "archetype": "agentic_environment_state_scoring",
+        "totals": res["totals"],
+        "density_by_hack": {k: v["density_per_1000"] for k, v in m["density_by_transform"].items()},
+        "witness_engine": loc["witness_engine"],
+        "all_single_variable_verified": loc["all_single_variable_verified"],
+        "all_causal_flips": loc["all_causal_flips"],
+        "frames_chain_head": m["frames_chain_head"],
+        "manifest_sha256": m["manifest_sha256"],
+    }, indent=2))
+    return 0
 
 
 if __name__ == "__main__":

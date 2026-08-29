@@ -247,6 +247,30 @@ def main() -> int:
         check("built-in witness occurrence chain verifies (tamper-evident)",
               verify_chain(_w.occurrences))
 
+    # --- agentic environment-state archetype (reward-hacking the checker) ----
+    from .agent_env import (HACKS, CHECKERS, _CHECKER_FOR_HACK, apply_hack,
+                            weak_grade, true_success, honest_solution,
+                            generate_tasks, witnessed_env_flip, run_agent_env_l1)
+    for _hk in HACKS:
+        _obs, _obj = apply_hack(_hk)
+        _ck = _CHECKER_FOR_HACK[_hk]
+        check(f"agent-env: {_hk} is an oracle-witnessed exploit on {_ck}",
+              weak_grade(_ck, _obs) and not true_success(_obj))
+        check(f"agent-env: {_hk} games ONLY its checker (specificity)",
+              sum(1 for c in CHECKERS if weak_grade(c, _obs)) == 1)
+    for _t in generate_tasks(5):
+        _ho, _hj = honest_solution(_t)
+        check(f"agent-env: honest solution passes weak AND oracle ({_t.checker_kind})",
+              weak_grade(_t.checker_kind, _ho) and true_success(_hj))
+    _reps = {t.checker_kind: t for t in generate_tasks(5)}
+    for _hk in HACKS:
+        _w2 = witnessed_env_flip(_reps[_CHECKER_FOR_HACK[_hk]], _hk)
+        check(f"agent-env: witnessed single-variable causal flip for {_hk}",
+              _w2["single_variable_verified"] and _w2["causal_flip"])
+    _eps = run_agent_env_l1(generate_tasks(10))
+    check("agent-env: honest + naive controls are never exploits",
+          not any(e.is_exploit for e in _eps if e.transform_id in ("honest_solution", "naive_unsolved")))
+
     # --- real LLM-judge path (offline, via grading provider) ---------------
     from .llm_judge import LLMJudge, SimulatedGraderProvider
     _lj = LLMJudge(SimulatedGraderProvider())
