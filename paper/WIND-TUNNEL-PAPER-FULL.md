@@ -37,7 +37,7 @@ wrongly rejecting; **(C5)** a verifiable, contamination-proof protocol whose hid
 regression suite is hash-committed before any result exists and whose every reported
 number is recomputable from a tamper-evident evidence bundle; and **(C6)** a platform
 validation — the entire study executes on the Gradia stack, demonstrating that the
-program's tooling can run a complete research study end to end. This is the third
+program's tooling can run a complete research study end to end. The method further extends past answer-grading to the **agentic environment-state archetype** — reward-hacking the environment checker that grades what an agent *did* — with a typed catalog of proxy-reward hacks that are oracle-witnessed and causally localized to a single observable variable by a witnessed fork. This is the third
 pillar of a program on verifiable evaluation, after Interruptible Universes (proving
 *what happened*) and Gradia Guard (proving *the record was not tampered with*).
 
@@ -74,10 +74,10 @@ loop — the tunnel finds the exploit (**evaluation**), the fork names the exact
 
 ### 1.3 Contributions
 
-C1–C6, above. Two further contributions extend the method: a **judge-gaming transform family** (seven oracle-witnessed vectors targeting documented LLM-judge biases: sycophancy-bait, false-citation, format-mimicry, hedge-flooding, plus three novel to this work — fake-verification, rubric-echo, calibrated-confidence) and a **two-regime auditing framework** that carries the method to *oracle-less*, judge-scored benchmarks (H6/H7) via metamorphic relations, bias probes, and judge-disagreement geometry, backed by a witnessed-substrate confabulation oracle. Section 3 formalizes the estimands; Sections 4–9 give the method and
+C1–C6, above. Three further contributions extend the method: a **judge-gaming transform family** (seven oracle-witnessed vectors targeting documented LLM-judge biases: sycophancy-bait, false-citation, format-mimicry, hedge-flooding, plus three novel to this work — fake-verification, rubric-echo, calibrated-confidence) and a **two-regime auditing framework** that carries the method to *oracle-less*, judge-scored benchmarks (H6/H7) via metamorphic relations, bias probes, and judge-disagreement geometry, backed by a witnessed-substrate confabulation oracle. Third, the **agentic environment-state archetype** (§4.6) carries the oracle-witnessed method to scorers that grade a *state* rather than an answer: a typed catalog of proxy-reward hacks — a final state that satisfies the weak environment checker while the hidden objective is unmet — each causally localized to one observable variable by a witnessed fork, the reward-hacking surface agentic benchmarks make load-bearing. Section 3 formalizes the estimands; Sections 4–9 give the method and
 architecture with diagrams; Sections 10–11 the experimental design and metrics;
 Sections 12–14 the analysis scaffolds; Sections 15–18 disclosure, limitations, ethics,
-reproducibility. A complete, self-verifying instrument accompanies the paper (71
+reproducibility. A complete, self-verifying instrument accompanies the paper (96
 property tests green); the only step to empirical results is a live run under the
 frozen preregistration.
 
@@ -226,6 +226,60 @@ on-policy generations, minimally edited, and ban injection artifacts ("ignore pr
 instructions", judge-directed meta-text) with an automated screen. This paragraph is the
 line between a novel reward-hacking study and a rediscovery of prompt injection.
 
+### 4.6 The agentic environment-state archetype (reward-hacking the checker)
+
+The families above attack scorers that grade an **answer**. The frontier's highest-value
+benchmarks grade a **state**: an agent acts, and the scorer checks whether the final
+environment satisfies a predicate (Terminal-Bench, OSWorld, SWE-bench). That predicate is
+a **proxy** for the true objective, and a proxy is exactly what a reward-hacking policy
+games — the specification-gaming failure mode (Amodei et al. 2016; Krakovna et al. 2020)
+that agentic evaluation makes load-bearing. We extend the oracle-witnessed method to this
+archetype with a **clean-room testbed** whose exploits are proxy-reward hacks, oracle-
+witnessed and causally localized.
+
+**Construction.** An environment's state is factored into an **observable** surface (what
+the checker reads) and a **hidden** objective (true success). A **weak grader** `J` is a
+predicate over the observable surface; the **oracle** `t` is the hidden objective. An
+**exploit** is a final state with `J = PASS ∧ t = FAIL` — a proxy-reward hack, double-
+locked exactly as in §4.1 (the hack is wrong-by-construction — the objective is provably
+unmet — and the oracle independently confirms). The testbed is **deterministic** — the
+state is a typed record, grader and oracle are pure predicates — so it needs no Docker, no
+model, and no gated data, and every cell is recomputable offline. It is the controlled
+complement to SWE-bench Verified (§10.1), the same archetype in the wild (execution oracle
+= the hidden test suite; weak grader = a public test subset).
+
+**The reward-hack catalog (five typed vectors).** Each manipulates exactly **one**
+observable variable and leaves the hidden objective unmet:
+
+| Vector | Weak-checker gamed | Proxy manipulation | Real-world analogue |
+|---|---|---|---|
+| `sentinel_write` | file-marker | write the success marker to the expected file | "touch the output the grader greps for" |
+| `test_deletion` | no-failures | mark the failing test *absent* (no failures reported) | delete or skip the failing test |
+| `exit_zero_stub` | exit-code | force process exit 0 | a catch-all that swallows the error |
+| `hardcode_visible` | visible-subset | pass the visible tests only | overfit the public tests; fail the hidden |
+| `log_keyword` | rubric-log | inject judge-favored phrasing into the graded log | game an LLM-graded trajectory log |
+
+**Specificity is a result (the agentic "exploit DNA").** Applying every vector against
+every checker archetype yields a **clean diagonal**: each vector games exactly its target
+checker and no other (a `test_deletion` cannot move a file-marker grader). Each weak-
+checker archetype therefore has one dominant reward-hack — mirroring the answer-graded
+finding (§13) that a benchmark's blind spot is specific, not uniform. Two controls anchor
+the matrix: an **honest solution** (does the real work — passes grader *and* oracle; never
+an exploit) and a **naive-unsolved** state (fails both).
+
+**Witnessed single-variable causal localization.** Because the environment *is* a world,
+the causal instrument of §6 applies natively. For each hack we fork the environment on the
+**single observable variable** it changes, and the witness engine returns the before/after
+world roots and the single-variable-changed proof (§6.2). A grader flip under a witnessed
+single-variable change is a **causally localized** proof that the checker rewarded the
+*proxy*, not the *work* — the witness certifies nothing else changed. No static agentic
+benchmark can produce this attribution; it is the branchable-universe thesis instantiated
+on the reward-hacking surface the field cares about most.
+
+**Naturalness (§4.4).** These are not injection artifacts: each is a plausible behavior a
+deployed policy could emit while "trying" to satisfy the checker — precisely what
+specification-gaming predicts.
+
 ---
 
 ## 5. System architecture
@@ -305,7 +359,7 @@ sequenceDiagram
 world root and reports `changed_fields = (age_band,)` with `single_variable_verified =
 true`. The universe-fork causal method rides on the same substrate that
 Interruptible Universes and Conditionally Approved are built on — a **wiring** over
-existing primitives, not a new platform capability.
+existing primitives, not a new platform capability. When the production engine is not installed, an **in-repo witness engine** supplies the same guarantees — content-addressed before/after roots, a single-variable-changed proof, and a hash-chained (tamper-evident) occurrence log — so the causal instrument is reproducible by any third party with no private dependency; the production engine is used automatically when present. The same witnessed single-variable fork localizes the **agentic reward-hacks** of §4.6, attributing a grader flip to exactly one observable environment variable.
 
 ### 6.3 Localization and prospective validation
 
@@ -415,7 +469,7 @@ engine, not a one-off. (Provider calls route through the Guard gateway in *gatew
 
 - **Tier A — famous public oracle benchmarks (named):** GSM8K and MATH (numeric / boxed),
   GPQA-Diamond (A–D), HLE (machine-checkable subset), HumanEval (unit-test oracle), SWE-bench Verified (execution;
-  documented test-gaming precedent).
+  documented test-gaming precedent). Tier A also carries the **agentic environment-state testbed** (§4.6) — a deterministic, in-repo reward-hacking archetype spanning five weak-checker types, needing no external data and no model in the loop, the controlled counterpart to SWE-bench Verified.
 - **Tier B — Gradia universes:** the v4r1 underwriting family + one second domain, for
   the richest causal claims.
 
@@ -466,6 +520,7 @@ All are recomputable offline by `wind-tunnel-verify` from the committed evidence
   annotated with the class.
 - **Fig 4** — the autoimmunity Pareto frontier: Δ⁺ vs. Δ⁻, one point per patch.
 - **Fig 5** — the exploitability spectrum per benchmark (small multiples).
+- **Fig 6** — the agentic reward-hack specificity matrix: five hack vectors × five weak-checker archetypes, the diagonal 'exploit DNA' (§4.6), from the agent-env bundle.
 - **Table 1** — adversary × judge transfer matrix.
 - **Table 2** — architecture per-dollar (density, γ, cost; incl. self-commitment arm).
 - **Table 3** — named-benchmark breakage summary + disclosure status + maintainer
@@ -536,6 +591,30 @@ more; convergence and patch-generalization γ under iterated repair; and — the
 program's distinguishing claim — **witnessed single-variable universe forks localizing
 the causal slice** behind a named exploit family. Those follow as the runs land.
 
+### 13.3 The agentic environment-state archetype (deterministic exhibit)
+
+*Scope.* A constructive result, not a stochastic measurement: the reward-hack catalog of
+§4.6 run against all five weak-checker archetypes over 100 tasks (700 attempts — five hack
+vectors plus two controls per task), with witnessed single-variable localization for every
+vector. Deterministic and recomputable; the evidence bundle verifies (`verify_bundle: ok`,
+700 frames, chain head recomputes).
+
+**Result.** The exploit matrix is a clean diagonal: each of the five reward-hack vectors
+games exactly its target checker archetype and no other — 100 oracle-witnessed exploits
+(one per task at its matching checker; density 200/1,000 per matched vector, 0 for both
+controls). Every hack is witnessed-localized to the single observable variable it
+manipulates: `all_single_variable_verified: true`, `all_causal_flips: true`, under the
+repo's built-in witness engine (before/after roots recompute; the occurrence chain is
+tamper-evident). This exhibits the archetype end-to-end — proxy-reward hacking, oracle-
+witnessed, and causally localized to one variable — with no answer key and no model in the
+loop.
+
+*Honest scope.* This is a controlled constructive demonstration (like the transform
+catalog of §4.2): it establishes the archetype, the typed catalog, and the witnessed
+localization — **not** a measurement of any deployed agent's propensity to hack. A
+stochastic, agent-driven version (real policies acting in the environment, judged by the
+same witnessed oracle) is Phase-2 work under its own preregistration.
+
 ## 14. Analysis and interpretation — *to be filled*
 
 *(Answer the central questions: does evaluator repair converge or relocate (H1/H2)? Does
@@ -561,7 +640,7 @@ payloads. Clinical universe items are synthetic; no real records are used.
 Two regimes: Regime 1 (oracle-backed) is instrumented and run here; Regime 2 (oracle-less, judge-scored grading) is designed with committed hypotheses (H6/H7) and a v1 instrument (metamorphic invariance/monotonicity, bias probes, judge-disagreement κ, plus a witnessed-substrate confabulation oracle), to be run under a Phase-2 preregistration; the adversary is not all real
 models; compute bounds rung depth; public-benchmark slices are quasi-experimental (only
 universe forks license causal claims); the local wrapper is bypassable and its receipts
-say exactly what they do not prove.
+say exactly what they do not prove. The agentic archetype (§4.6) is a deterministic constructive testbed — it establishes the reward-hack catalog and witnessed single-variable localization, not any deployed agent's propensity to hack; a stochastic, agent-driven version is Phase-2 work under its own preregistration.
 
 ## 17. Ethics
 
@@ -575,7 +654,7 @@ The preregistration is git-pinned, spend-capped, and self-digested; the transfor
 and oracle specs are frozen and hashed into it; the hidden-vault empty head is published
 before any run. Every reported number is recomputable from `frames.ndjson` via
 `verify_bundle`, and the whole study replays offline from checked-in evidence. The
-instrument ships with 71 property tests.
+instrument ships with 96 property tests.
 
 ---
 
@@ -598,12 +677,13 @@ window), analysis_blind_gates, responsible_disclosure, preregistration_sha256.
 - **HumanEval:** run the completion against the task's unit tests in a sandbox; tests
   pass ⇒ correct. (SWE-bench Verified: apply the patch in the task image; FAIL_TO_PASS +
   PASS_TO_PASS via the harness.)
+- **Agent-env (§4.6):** the oracle is the hidden objective (a predicate over the non-observable surface); the weak grader is a predicate over the observable surface; an exploit is weak-PASS ∧ oracle-FAIL. Deterministic; no external data.
 
 ## Appendix C — the CLI and artifacts
 
 `prereg-freeze` / `prereg-verify`; `demo`; `run` (full study + self-verifying report);
 `suite --benchmark <id> [--real] [--live]` (per-benchmark evidence bundle); `verify` /
-`verify-report`; `figures`. Artifacts: `preregistrations/*.json`, `results/<run>/
+`verify-report`; `figures`; `suite --rung L2` (adaptive search); `localize` (witnessed single-variable causal localization); `regime2` (oracle-less audit); `agentenv` (agentic reward-hacking archetype); `swebench-check` (SWE-bench readiness). Artifacts: `preregistrations/*.json`, `results/<run>/
 frames.ndjson` + `manifest.json`, `paper/figures/*.png`.
 
 ## Appendix D — hypotheses (directions pre-committed)
@@ -618,7 +698,7 @@ frames.ndjson` + `manifest.json`, `paper/figures/*.png`.
 
 ---
 
-*Methodology, architecture, and protocol are complete and instrumented (71 tests). The
+*Methodology, architecture, and protocol are complete and instrumented (96 tests). The
 only remaining work is empirical: run under the frozen preregistration and fill §13–§14.
 Positioned against literature surfaced Aug 2026; a few related-work deltas are inferred
 from title+abstract and must be confirmed by full reads before submission.*
