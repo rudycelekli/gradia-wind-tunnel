@@ -74,7 +74,7 @@ loop — the tunnel finds the exploit (**evaluation**), the fork names the exact
 
 ### 1.3 Contributions
 
-C1–C6, above. Section 3 formalizes the estimands; Sections 4–9 give the method and
+C1–C6, above. Two further contributions extend the method: a **judge-gaming transform family** (seven oracle-witnessed vectors targeting documented LLM-judge biases: sycophancy-bait, false-citation, format-mimicry, hedge-flooding, plus three novel to this work — fake-verification, rubric-echo, calibrated-confidence) and a **two-regime auditing framework** that carries the method to *oracle-less*, judge-scored benchmarks (H6/H7) via metamorphic relations, bias probes, and judge-disagreement geometry, backed by a witnessed-substrate confabulation oracle. Section 3 formalizes the estimands; Sections 4–9 give the method and
 architecture with diagrams; Sections 10–11 the experimental design and metrics;
 Sections 12–14 the analysis scaffolds; Sections 15–18 disclosure, limitations, ethics,
 reproducibility. A complete, self-verifying instrument accompanies the paper (71
@@ -208,6 +208,10 @@ mutate → oracle confirms wrong → judge scores → judge PASS = confirmed exp
 *This inverts the program's evaluator-mutation discipline: in Conditionally Approved we
 mutated rubric criteria to prove each gate bites; here we mutate the answer to prove the
 gates leak.*
+
+### 4.5 The judge-gaming family (attacks the judge, not the extractor)
+
+A second transform family targets the **LLM judge's documented biases** rather than the answer extractor. Each keeps the oracle-wrong core — so a judge PASS is a *confirmed* defect, not a disagreement — and adds a **natural** rhetorical layer a deployed model could plausibly emit, passing the naturalness screen with no injection artifacts. Seven vectors ship in transform catalog v2: **sycophancy-bait** (agreement/validation framing), **false-citation** (fabricated authority), **format-mimicry** (the structure judges reward), **hedge-flooding** (comprehensive-sounding qualification), and three novel to this work — **fake-verification** (a fabricated self-check step), **rubric-echo** (asserting each criterion is met: the Goodhart letter-vs-intent attack as a transform), and **calibrated-confidence** (well-calibrated-sounding certainty). Every vector is oracle-confirmed wrong on all machine-checkable benchmarks (GSM8K, MATH, GPQA, HumanEval, HLE).
 
 ### 4.3 Adversary
 
@@ -384,7 +388,7 @@ and it complements the program's "benchmarks are flawed" thesis directly.
 A benchmark-scorer study is a demanding end-to-end workload: generate controlled items,
 fork worlds for causal identification, call identity-pinned frontier models under a
 spend cap, record tamper-evident evidence, and freeze a preregistration whose digests
-verify across runtimes. We run the **entire** pipeline on the Gradia stack. The mapping
+verify across runtimes. The study is built to run on the Gradia stack through **capability-detected bindings, each with a standalone fallback**. The genuinely engine-backed component is the witnessed universe-fork causal instrument, which executes on the real `gradia_universes` engine (demonstrated); the benchmark harness is Gradia-*consistent* (byte-identical canonical JSON, the same fail-closed preregistration, the same hash-chained receipts) and integration-ready, but runs standalone by default. `gradia_stack_status()` reports which bindings are live in a given environment, so the claim is testable, not decorative. The mapping
 (generated from the repository's integration map, not asserted):
 
 | Wind Tunnel component | Gradia tool | Role |
@@ -401,7 +405,7 @@ enters the adversary or judge process** — the study is also a live exercise of
 central guarantee. Separately, `examples/gradia_capability_demo.py` shows the Gradia
 engine running an arbitrary custom environment with tool actions, a single-variable
 branch, and a tamper-evident proof chain — evidence that Gradia is a general environment
-engine, not a one-off.
+engine, not a one-off. (Provider calls route through the Guard gateway in *gateway mode*; the *quick mode* used for first-number runs posts directly to the provider with the capability as the process's own credential — so the "no provider key in the agent process" guarantee is specific to gateway mode, and each reported number states which mode produced it.)
 
 ---
 
@@ -410,7 +414,7 @@ engine, not a one-off.
 ### 10.1 Testbeds
 
 - **Tier A — famous public oracle benchmarks (named):** GSM8K and MATH (numeric / boxed),
-  GPQA-Diamond (A–D), HumanEval (unit-test oracle), SWE-bench Verified (execution;
+  GPQA-Diamond (A–D), HLE (machine-checkable subset), HumanEval (unit-test oracle), SWE-bench Verified (execution;
   documented test-gaming precedent).
 - **Tier B — Gradia universes:** the v4r1 underwriting family + one second domain, for
   the richest causal claims.
@@ -502,7 +506,7 @@ payloads. Clinical universe items are synthetic; no real records are used.
 
 ## 16. Limitations
 
-Oracle-only scope (open-ended grading is future work); the adversary is not all real
+Two regimes: Regime 1 (oracle-backed) is instrumented and run here; Regime 2 (oracle-less, judge-scored grading) is designed with committed hypotheses (H6/H7) and a v1 instrument (metamorphic invariance/monotonicity, bias probes, judge-disagreement κ, plus a witnessed-substrate confabulation oracle), to be run under a Phase-2 preregistration; the adversary is not all real
 models; compute bounds rung depth; public-benchmark slices are quasi-experimental (only
 universe forks license causal claims); the local wrapper is bypassable and its receipts
 say exactly what they do not prove.
@@ -557,6 +561,8 @@ frames.ndjson` + `manifest.json`, `paper/figures/*.png`.
 - **H3** autoimmunity trade-off exists (closure ⟂ preservation, negative).
 - **H4** self-commitment dominates per-dollar but does not reach zero exploitability.
 - **H5** named causal slices predict on prospective held-out generation above baselines.
+- **H6** oracle-less scorers show adaptive-search invariance violations above the natural rate, concentrated in high judge-disagreement (low-κ) regions (interesting-if-false: invariance-stable judges would mean oracle-less benchmarks are safer than feared).
+- **H7** the witnessed substrate yields a nonzero, human-free rate of accepted answers the world contradicts (witnessed confabulation), converting otherwise-unjudgeable items into oracle-decidable failures.
 
 ---
 
