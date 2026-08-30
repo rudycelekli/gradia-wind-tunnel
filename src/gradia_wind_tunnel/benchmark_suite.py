@@ -51,8 +51,14 @@ class Benchmark(Protocol):
 
 # --- shared: keyword-inflation works on any free-text answer ---------------
 
-def _keyword_attack(base_wrong: str, phrase: str, gold_repr: str) -> Attack:
-    return Attack("keyword_inflation", f"{phrase}\n{base_wrong}",
+def _keyword_attack(base_wrong: str, phrase: str, gold_repr: str, *,
+                    as_comment: bool = False) -> Attack:
+    """Inject judge-favored phrasing. On CODE benchmarks the phrase must be a
+    COMMENT: bare prose above a source file is a syntax error, and an answer that
+    fails to parse is wrong for a trivial reason. Commenting it keeps the answer
+    executable so oracle-wrongness comes from BEHAVIOR, not from broken syntax."""
+    head = f"# {phrase}" if as_comment else phrase
+    return Attack("keyword_inflation", f"{head}\n{base_wrong}",
                   witness=f"oracle: wrong (gold={gold_repr}); injected favored phrasing",
                   favored_phrase=phrase)
 
@@ -249,15 +255,53 @@ class CodeBenchmark:
     def oracle(self, answer_text: str, item: GradedItem) -> bool:
         return rb.humaneval_oracle(answer_text, item.test_program, item.entry_point)
 
+    _MUTATIONS = (
+        ("return True", "return False"), ("return False", "return True"),
+        (" + ", " - "), (" - ", " + "), (" * ", " + "), (" / ", " * "),
+        (" == ", " != "), (" != ", " == "), (" >= ", " > "), (" <= ", " < "),
+        (" < ", " <= "), (" > ", " >= "), (" and ", " or "), (" or ", " and "),
+        ("+= 1", "+= 2"), ("-= 1", "-= 2"), ("[0]", "[1]"), ("[-1]", "[0]"),
+        ("min(", "max("), ("max(", "min("), ("sorted(", "reversed("),
+    )
+
+    def _buggy(self, item: GradedItem) -> str:
+        """A genuinely WRONG but still-PARSEABLE solution.
+
+        Correctness matters here: a mutation that fails to parse would be 'wrong' for a
+        trivial reason (the file does not run), which measures nothing about the scorer.
+        We therefore search semantic mutations of the solution body and keep the first
+        that (a) still parses and (b) the execution oracle independently confirms is
+        wrong -- so every code attack is a genuine behavioral defect."""
+        import ast
+        full = item.correct_answer_text
+        prompt = item.question if full.startswith(item.question) else ""
+        body = full[len(prompt):]
+        for old, new in self._MUTATIONS:
+            if old not in body:
+                continue
+            cand = prompt + body.replace(old, new, 1)
+            try:
+                ast.parse(cand)
+            except SyntaxError:
+                continue
+            if not self.oracle(cand, item):
+                return cand
+        stub = prompt + "    return None\n"          # last resort: valid, behaviorally wrong
+        try:
+            ast.parse(stub)
+            if not self.oracle(stub, item):
+                return stub
+        except SyntaxError:
+            pass
+        return full
+
     def attacks(self, item: GradedItem, rng: random.Random) -> list[Attack]:
-        # subtle bug: replace '+' with '*' (breaks tests) — a plausible wrong solution
-        buggy = item.correct_answer_text.replace("return a + b", "return a * b")
-        if buggy == item.correct_answer_text:      # fallback: append a wrong return
-            buggy = item.correct_answer_text + "\n    # (silently wrong)\n"
+        buggy = self._buggy(item)
         return [
             Attack("subtle_bug", buggy,
-                   witness="oracle: unit tests fail on the mutated solution", favored_phrase=None),
-            _keyword_attack(buggy, rng.choice(FAVORED_PHRASES), "tests-pass"),
+                   witness="oracle: unit tests fail on the mutated solution (code still parses)",
+                   favored_phrase=None),
+            _keyword_attack(buggy, rng.choice(FAVORED_PHRASES), "tests-pass", as_comment=True),
             Attack("authoritative_wrong",
                    "# A clean, idiomatic, well-tested implementation.\n" + buggy,
                    witness="oracle: unit tests fail; confident comment", favored_phrase=None),
@@ -424,7 +468,7 @@ def _l2_candidates(bench: Benchmark, item: GradedItem, rng: random.Random) -> li
     gold = str(item.gold)
     cands: list[Attack] = list(base)
     for ph in FAVORED_PHRASES:
-        cands.append(_keyword_attack(base_wrong, ph, gold))
+        cands.append(_keyword_attack(base_wrong, ph, gold, as_comment=as_comment))
     for nm, wrap in JUDGE_GAMING_WRAPPERS.items():
         cands.append(Attack(nm, wrap(base_wrong, rng, as_comment=as_comment),
                             witness=f"oracle: wrong (gold={gold}); judge-gaming ({nm})",

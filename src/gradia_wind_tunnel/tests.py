@@ -34,6 +34,7 @@ def check(name, cond):
 
 
 def main() -> int:
+    from .benchmark_suite import build_benchmark as _bb
     items = generate_factorial(seed=SEED, per_cell=6)
 
     # --- oracle correctness ------------------------------------------------
@@ -499,6 +500,30 @@ def main() -> int:
           _rj["rubric_edit_loop"]["classification"] == "relocation_plateau")
     check("real-judge self-commitment rubric cures (density -> 0)",
           _rj["structural_arm"]["self_commitment_density_per_1000"] == 0.0)
+
+    # --- code attacks must be BEHAVIORAL defects, never syntax artifacts ---
+    import ast as _ast
+    _cb = _bb("humaneval")
+    _cit = _cb.offline_samples(seed=SEED)
+    _rngc = __import__("random").Random(SEED)
+    _all_parse = True
+    _all_wrong = True
+    for _it in _cit:
+        for _atk in _cb.attacks(_it, _rngc):
+            try:
+                _ast.parse(_atk.answer_text)
+            except SyntaxError:
+                _all_parse = False
+            if _cb.oracle(_atk.answer_text, _it):
+                _all_wrong = False
+    check("code attacks still PARSE (wrongness is behavioral, not a syntax artifact)", _all_parse)
+    check("code attacks are oracle-confirmed wrong", _all_wrong)
+    _kwc = _cb.attacks(_cit[0], __import__("random").Random(SEED))[1]
+    check("code keyword injection is a COMMENT (keeps the answer executable)",
+          _kwc.answer_text.lstrip().startswith("#"))
+    _mut = _cb._buggy(_cit[0])
+    check("code mutation actually changes the solution",
+          _mut != _cit[0].correct_answer_text)
 
     print(f"\n{PASSED} passed, {FAILED} failed")
     return 1 if FAILED else 0

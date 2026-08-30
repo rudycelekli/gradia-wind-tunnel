@@ -48,7 +48,8 @@ def render_answer(base_wrong: str, variable: str, rng, *, as_comment: bool = Fal
     if variable in (None, "none"):
         return base_wrong
     if variable.startswith("phrase:"):
-        return f"{variable.split(':', 1)[1]}\n{base_wrong}"
+        _ph = variable.split(':', 1)[1]
+        return f"{('# ' + _ph) if as_comment else _ph}\n{base_wrong}"
     return JUDGE_GAMING_WRAPPERS[variable](base_wrong, rng, as_comment=as_comment)
 
 
