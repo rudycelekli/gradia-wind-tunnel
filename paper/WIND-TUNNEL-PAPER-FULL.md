@@ -795,7 +795,7 @@ and runs in the L2 wave); the adversary×judge transfer matrix and whether struc
 (self-commitment) resist more; and convergence and patch-generalization γ under iterated
 repair. Those follow as the L2 / localization / Regime-2 bundles land.
 
-### 13.4 L2 adaptive search — *in progress*
+### 13.4 L2 adaptive search and witnessed localization
 
 Rung L1 applies a fixed catalog. **L2** lets a budgeted adaptive attacker *search*: per item it
 tries an expanded candidate set (the base wrong-by-construction attacks, keyword inflation over
@@ -914,6 +914,50 @@ than silently repaired.
 single-variable causal localization for each — including whether adaptive search raises density
 on the scorers that already leak at L1, and whether it cracks GPQA-Diamond's near-resistant
 key-match scorer.
+
+**The full L2 slate (complete).** Adaptive search now covers all five machine-checkable scorers,
+and the pattern is the section's headline:
+
+| Scorer | L1 /1k | L2 /1k | L2 spend | reading |
+|---|---:|---:|---:|---|
+| GSM8K | 0 | **0** | $10.99 | a verifiable scorer resists at *every* budget |
+| GPQA-Diamond | 6.6 | **15.2** | $25.17 | adaptive search cracks the near-resistant key-match scorer |
+| HLE (frontier exam) | 64.5 | **125.0** | $35.96 | ~doubles under adaptive budget |
+| MATH | 107.5 | **185.0** | $13.47 | ~doubles |
+| HumanEval† | *(superseded)* | *(superseded)* | — | attack family was a syntax artifact (§8.5); re-running |
+
+**Adaptive budget roughly doubles exploit density on every leaking scorer and cracks the one
+that was near-resistant at L1 (GPQA-Diamond 6.6 → 15.2), while the one scorer that can
+independently verify its answer (GSM8K) resists at every budget (0 at both rungs).** MATH is the
+lone exception to the doubling — there the fixed catalog already saturates the per-item crack
+rate (above), so search buys almost nothing. Where a gap exists, more budget widens it; where
+none exists, no budget opens one.
+
+**Localization across the leaking scorers: the defect is diffuse everywhere.** Witnessed
+single-variable localization now covers GSM8K, MATH, GPQA-Diamond and HumanEval (HLE pending).
+The result is uniform, and it is the paper's connective tissue: **no scorer's gameability
+localizes to a single construction variable.** GSM8K yields zero flips (nothing to attribute —
+its own negative control); MATH is mechanism-positive but attribution-inconclusive (six
+witnessed flips, no dominant variable, lift 0.005); GPQA-Diamond likewise shows no
+single-variable concentration at this cohort size; and HumanEval's earlier *apparent*
+razor-narrow `keyword_inflation` dependence was the syntax artifact (§8.5), not a genuine
+concentration — the corrected re-run tests whether any real narrow dependence exists.
+
+**Why this is one finding, not three.** The diffuse-defect result is the mechanism that unifies
+the paper. Because gameability is spread across many surface cues rather than concentrated in
+one: (i) the **transfer matrix** (§13.6) sees signal-specific exploits that nonetheless leave no
+reference-free judge safe; (ii) the **convergence loop** (§7.3) sees local rubric patches
+*relocate* rather than converge (γ_local = 0) — you cannot patch a diffuse defect one cue at a
+time; and (iii) the **witnessed localizer** correctly declines to name a single cause. Three
+instruments, three views, one underlying structure: *reference-free scoring is gameable
+diffusely, so only a structural change to what the scorer checks — not any local edit — removes
+the exploit surface.* That is the safety-relevant thesis, and every empirical leg points at it.
+
+*Live SWE-bench (running).* The containerized test-gaming measurement (§4.7) is producing valid
+oracle-witnessed exploits on real repositories under the self-validating harness — a budgeted
+stratified sweep across the twelve Verified repos, checkpointing per instance. It lands as a
+strengthener of the agentic-archetype claim, not a dependency: the offline catalog already
+carries the SWE contribution.
 
 ### 13.3 The agentic environment-state archetype (deterministic exhibit)
 
