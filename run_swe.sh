@@ -42,6 +42,42 @@ from gradia_wind_tunnel.swebench_harness import harness_ready
 r=harness_ready(); sys.exit(0 if r['ready'] else 1)" || { say "  FATAL: harness not ready (see above)"; exit 1; }
 say "  READY"
 
+say ""; say "===== [2.5/4] pre-pull task images for the host platform ====="
+say "  (DOCKER_DEFAULT_PLATFORM only affects the docker CLI; swebench pulls via docker-py,"
+say "   which ignores it — so we pull explicitly here and swebench then finds them locally)"
+PLATARG=""
+[ -n "${DOCKER_DEFAULT_PLATFORM:-}" ] && PLATARG="--platform ${DOCKER_DEFAULT_PLATFORM}"
+python3 - "$LIMIT" > "$OUT/images.txt" 2>/dev/null <<'PYIMG'
+import sys
+try:
+    from gradia_wind_tunnel.swebench_live import load_live_cases
+    from gradia_wind_tunnel.swebench_harness import instance_image_name
+    for case, _ in load_live_cases(int(sys.argv[1])):
+        print(instance_image_name(case.instance_id))
+except Exception as e:
+    print("", file=sys.stderr)
+PYIMG
+if [ -s "$OUT/images.txt" ]; then
+  while read -r img; do
+    [ -z "$img" ] && continue
+    if docker image inspect "$img" >/dev/null 2>&1; then
+      say "  already local: $img"
+    else
+      say "  pulling $img"
+      say "    (multi-GB under $DOCKER_DEFAULT_PLATFORM emulation — this is the slow step)"
+      if docker pull $PLATARG "$img" >"$OUT/pull.log" 2>&1; then
+        say "    pulled OK"
+      else
+        say "    PULL FAILED — tail:"; tail -3 "$OUT/pull.log" | tee -a "$OUT/swe.log"
+        say "    If the image truly has no x86_64 build, fall back to building locally:"
+        say "      python3 -m swebench.harness.prepare_images --instance_ids <id> --max_workers 2"
+      fi
+    fi
+  done < "$OUT/images.txt"
+else
+  say "  could not resolve image names (dataset/network?) — continuing"
+fi
+
 say ""; say "===== [3/4] prove the ORACLE (gold patch must RESOLVE) ====="
 say "  first run pulls a multi-GB task image — expect several minutes"
 python3 -c "
