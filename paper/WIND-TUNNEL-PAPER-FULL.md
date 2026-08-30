@@ -484,7 +484,7 @@ measure, not assume.
 
 *(Current procedural run; `run_research.sh` regenerates the loop curve and the modality
 table from the latest evidence. A real-LLM-judge convergence run — rubric-editing the
-deployed frontier judge across cycles — is specified in §10 and executed on a Guard-routed
+deployed frontier judge across cycles — is built and offline-verified (run_realjudge.sh), and runs against a Guard-routed
 model.)*
 
 ---
