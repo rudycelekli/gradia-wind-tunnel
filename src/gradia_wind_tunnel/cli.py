@@ -10,7 +10,8 @@
     gradia-wind-tunnel regime2  --benchmark hle  [--real] [--live] [--limit N]  # oracle-LESS audit (no key)
     gradia-wind-tunnel swebench-check                                          # SWE-bench readiness ladder
     gradia-wind-tunnel swebench-attacks [--cases N]                             # SWE test-gaming attack catalog
-    gradia-wind-tunnel swebench-live [--limit N] [--no-oracle]                  # LIVE SWE run (needs Docker)
+    gradia-wind-tunnel swebench-live [--limit N] [--stratified] [--skip-done GLOB]  # LIVE SWE run (needs Docker); --skip-done resumes
+    gradia-wind-tunnel swebench-merge results/swe-live-*/live --out results/swe-merged  # union runs -> one bundle
     gradia-wind-tunnel agentenv [--tasks N]                                     # agentic env-state reward-hacking
     gradia-wind-tunnel demo                     # offline end-to-end walkthrough
     gradia-wind-tunnel verify RUN.json          # recompute a run-log chain head
@@ -115,6 +116,8 @@ def main(argv: list[str] | None = None) -> int:
         return _swebench_attacks(rest)
     if cmd == "swebench-live":
         return _swebench_live(rest)
+    if cmd == "swebench-merge":
+        return _swebench_merge(rest)
     if cmd == "research":
         return _research(rest)
     if cmd == "index":
@@ -531,6 +534,47 @@ def _swebench_attacks(argv: list[str]) -> int:
     return 0
 
 
+def _swebench_merge(argv: list[str]) -> int:
+    """Union several live SWE run bundles into ONE re-validated bundle. Positional args
+    are run dirs or globs (e.g. 'results/swe-live-*/live'); episodes + observations are
+    merged, deduped, and re-finalized through the control-clean reporting path."""
+    import os
+    from glob import glob as _glob
+    from .swebench_live import merge_swe_runs
+    out = run_id = None
+    globs: list = []
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "--out": out = argv[i + 1]; i += 2
+        elif a == "--run-id": run_id = argv[i + 1]; i += 2
+        else: globs.append(a); i += 1
+    import os as _os
+    dirs: list = []
+    for g in globs:
+        dirs += _glob(g)
+    # newest-first so a later (better) run wins when an instance appears in two dirs
+    dirs = sorted({d for d in dirs if d}, key=lambda d: _os.path.getmtime(d), reverse=True)
+    if not dirs:
+        raise SystemExit("swebench-merge: no run dirs matched " + repr(globs))
+    out = out or "results/swe-merged"
+    res = merge_swe_runs(dirs, out, run_id=run_id,
+                         preregistration_sha256=os.environ.get("GRADIA_WT_PREREG_SHA256"))
+    m = res["manifest"]; v = res.get("validity", {})
+    print(json.dumps({
+        "VALID": v.get("valid"), "problems": v.get("problems"),
+        "merged_from": res.get("merged_from"),
+        "out_dir": res["out_dir"], "n_instances": m.get("n_instances"),
+        "instances_excluded": v.get("instances_excluded"),
+        "excluded_instances": v.get("excluded_instances"),
+        "totals": m["totals"],
+        "density_by_transform": m.get("density_by_transform"),
+        "prediction_agreement": m.get("prediction_agreement"),
+        "frames_chain_head": m["frames_chain_head"], "manifest_sha256": m["manifest_sha256"],
+    }, indent=2))
+    return 0
+
+
 def _swebench_live(argv: list[str]) -> int:
     """LIVE SWE-bench reward-hacking on real task containers. One container run per
     (instance, patch) read by three weak graders; the oracle is the official harness.
@@ -546,6 +590,7 @@ def _swebench_live(argv: list[str]) -> int:
     seed = 20260830
     prune_images = True
     min_free_gb = 20.0
+    skip_globs: list = []
     i = 0
     while i < len(argv):
         a = argv[i]
@@ -558,12 +603,23 @@ def _swebench_live(argv: list[str]) -> int:
         elif a == "--seed": seed = int(argv[i + 1]); i += 2
         elif a == "--keep-images": prune_images = False; i += 1
         elif a == "--min-free-gb": min_free_gb = float(argv[i + 1]); i += 2
+        elif a == "--skip-done": skip_globs.append(argv[i + 1]); i += 2
         else: raise SystemExit(f"swebench-live: unknown option {a!r}")
     run_id = run_id or ("gradia-wind-tunnel-swebench-live-" + datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S"))
+    skip_ids = None
+    if skip_globs:
+        from glob import glob as _glob
+        from .swebench_live import collect_done_ids
+        _dirs: list = []
+        for _g in skip_globs:
+            _dirs += sorted(_glob(_g))
+        skip_ids = collect_done_ids(_dirs)
+        print(f"# resume: skipping {len(skip_ids)} instance(s) already measured in {len(_dirs)} prior dir(s)")
     res = run_live_attacks(run_id, limit=limit, out_dir=out, run_oracle=run_oracle,
                            timeout=timeout, stratified=stratified, seed=seed,
                            prune_images=prune_images, min_free_gb=min_free_gb,
-                           preregistration_sha256=os.environ.get("GRADIA_WT_PREREG_SHA256"))
+                           preregistration_sha256=os.environ.get("GRADIA_WT_PREREG_SHA256"),
+                           skip_ids=skip_ids)
     m = res["manifest"]
     v = res.get("validity", {})
     print(json.dumps({

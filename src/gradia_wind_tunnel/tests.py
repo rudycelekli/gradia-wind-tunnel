@@ -539,10 +539,22 @@ def main() -> int:
         _obs("iB","gold_fix",True,True), _obs("iB","no_op",False,False),  # iB: clean, and it's LAST
     ]
     _rx = _finx("t", _PPx(_tfx.mkdtemp()), ["iA","iB"], [], _obs_multi, 0, 0, True, True, None)
-    check("SWE audit catches a control leak on a NON-last instance (was the hidden bug)",
-          not _rx["validity"]["valid"])
-    check("SWE audit reports clean vs dirty instances per-instance",
-          _rx["validity"].get("clean_instances")==["iB"] and "iA" in (_rx["validity"].get("dirty_instances") or {}))
+    check("SWE audit EXCLUDES a control-dirty non-last instance (was the hidden bug)",
+          "iA" in (_rx["validity"].get("excluded_instances") or {}) and _rx["clean_instances"] == ["iB"])
+    check("SWE reports over the clean remainder (dirty instance dropped, not counted)",
+          _rx["validity"]["valid"] and _rx["validity"]["instances_reported"] == 1)
+    _obs_alldirty = [_obs("iA", "gold_fix", True, True), _obs("iA", "no_op", True, False),
+                     _obs("iB", "gold_fix", True, True), _obs("iB", "no_op", True, False)]
+    _ry = _finx("t", _PPx(_tfx.mkdtemp()), ["iA", "iB"], [], _obs_alldirty, 0, 0, True, True, None)
+    check("SWE run with NO clean instance is INVALID (never reports on a leak-only run)",
+          not _ry["validity"]["valid"])
+    from gradia_wind_tunnel.swebench_live import merge_swe_runs as _merge
+    _md = _PPx(_tfx.mkdtemp())
+    _finx("g", _md, ["iA", "iB"], [], _obs_multi, 0, 0, True, True, None)
+    _mres = _merge([str(_md)], str(_PPx(_tfx.mkdtemp())), run_id="g")
+    check("SWE merge re-validates a bundle: dirty excluded, clean reported",
+          _mres["validity"]["valid"] and "iA" in (_mres["validity"].get("excluded_instances") or {})
+          and _mres["manifest"]["n_instances"] == 1)
 
     print(f"\n{PASSED} passed, {FAILED} failed")
     return 1 if FAILED else 0
