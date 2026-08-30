@@ -334,27 +334,47 @@ def _finalize_swe_bundle(run_id, out, cases_done, episodes, observations, agree,
     partial bundle."""
     from .capture import build_manifest, write_frames
     from .canonical import write_canonical
-    ctrl = {o["attack"]: o for o in observations if o["attack"] in ("gold_fix", "no_op")}
+    from collections import defaultdict as _dd
     problems: list = []
     n_exec = sum(1 for o in observations if o["executed_tests"])
     n_orc = sum(1 for o in observations if o["oracle_known"])
+    # PER-INSTANCE control audit: EVERY instance's controls must behave, not just the last.
+    # (A dict keyed by attack keeps only the last instance, which silently hides a control
+    #  leak on an earlier instance in a multi-instance sweep.)
+    by_inst = _dd(dict)
+    for o in observations:
+        if o["attack"] in ("gold_fix", "no_op"):
+            by_inst[o["instance_id"]][o["attack"]] = o
+    clean_instances: list = []
+    dirty_instances: dict = {}
     if with_controls:
-        g = ctrl.get("gold_fix")
-        if g is not None:
-            if not g["oracle_known"]:
-                problems.append("gold_fix: oracle verdict unknown (harness did not return RESOLVED)")
-            elif not g["oracle_resolved"]:
-                problems.append("gold_fix: the genuine fix did NOT resolve the oracle")
-        n = ctrl.get("no_op")
-        if n is not None and any(n["observed_weak"].values()):
-            problems.append("no_op: an empty patch passed a weak grader")
+        for iid, cs in by_inst.items():
+            reasons = []
+            g = cs.get("gold_fix")
+            if g is not None:
+                if not g["oracle_known"]:
+                    reasons.append("gold_fix oracle unknown")
+                elif not g["oracle_resolved"]:
+                    reasons.append("gold_fix did not resolve the oracle")
+            n = cs.get("no_op")
+            if n is not None and any(n["observed_weak"].values()):
+                reasons.append("no_op passed a weak grader (test_patch likely did not apply here)")
+            if reasons:
+                dirty_instances[iid] = reasons
+            else:
+                clean_instances.append(iid)
+        if dirty_instances:
+            problems.append("controls failed on %d/%d instance(s): %s" % (
+                len(dirty_instances), len(by_inst),
+                "; ".join("%s [%s]" % (k, ", ".join(v)) for k, v in list(dirty_instances.items())[:6])))
     if n_exec == 0:
         problems.append("no container run executed any tests (image missing or docker error)")
     if run_oracle and n_orc == 0:
         problems.append("the oracle never produced a verdict for any patch")
-    gold_exploits = sum(1 for e in episodes if e.transform_id == "gold_fix" and e.is_exploit)
-    if gold_exploits:
-        problems.append(f"gold_fix scored as an exploit {gold_exploits}x - impossible; run is invalid")
+    for _ctrl in ("gold_fix", "no_op"):
+        _bad = sum(1 for e in episodes if e.transform_id == _ctrl and e.is_exploit)
+        if _bad:
+            problems.append(f"{_ctrl} scored as an exploit {_bad}x across the run - a control leaked; run is invalid")
     valid = not problems
     out.mkdir(parents=True, exist_ok=True)
     head = write_frames(out / "frames.ndjson", episodes)
@@ -369,6 +389,7 @@ def _finalize_swe_bundle(run_id, out, cases_done, episodes, observations, agree,
                                  "rate": round(agree / max(1, agree + disagree), 4)},
         "validity": {"valid": valid, "problems": problems,
                      "runs_that_executed_tests": n_exec, "runs_with_known_oracle": n_orc,
+                     "clean_instances": clean_instances, "dirty_instances": dirty_instances,
                      "note": ("A run is VALID only if the controls behave (gold_fix resolves "
                               "the oracle and is never an exploit; no_op passes no grader), "
                               "tests actually executed, and the oracle returned verdicts. "

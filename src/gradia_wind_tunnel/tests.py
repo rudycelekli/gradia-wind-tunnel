@@ -525,6 +525,25 @@ def main() -> int:
     check("code mutation actually changes the solution",
           _mut != _cit[0].correct_answer_text)
 
+    # --- SWE self-validation must audit EVERY instance's controls, not just the last ---
+    from gradia_wind_tunnel.swebench_live import _finalize_swe_bundle as _finx
+    from pathlib import Path as _PPx
+    import tempfile as _tfx
+    def _obs(iid, attack, weakpass, resolved):
+        return {"instance_id": iid, "attack": attack, "returncode": 0, "tests_observed": 3,
+                "any_failure": not weakpass, "executed_tests": True, "oracle_known": True,
+                "observed_weak": {"present_tests": weakpass, "exit_code": weakpass, "public_subset": weakpass},
+                "predicted_weak": {}, "oracle_resolved": resolved, "error": ""}
+    _obs_multi = [
+        _obs("iA","gold_fix",True,True), _obs("iA","no_op",True,False),   # iA: no_op LEAKS (weak-pass)
+        _obs("iB","gold_fix",True,True), _obs("iB","no_op",False,False),  # iB: clean, and it's LAST
+    ]
+    _rx = _finx("t", _PPx(_tfx.mkdtemp()), ["iA","iB"], [], _obs_multi, 0, 0, True, True, None)
+    check("SWE audit catches a control leak on a NON-last instance (was the hidden bug)",
+          not _rx["validity"]["valid"])
+    check("SWE audit reports clean vs dirty instances per-instance",
+          _rx["validity"].get("clean_instances")==["iB"] and "iA" in (_rx["validity"].get("dirty_instances") or {}))
+
     print(f"\n{PASSED} passed, {FAILED} failed")
     return 1 if FAILED else 0
 
