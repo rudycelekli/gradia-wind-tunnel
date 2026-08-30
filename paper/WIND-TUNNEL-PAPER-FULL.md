@@ -555,66 +555,74 @@ figure is illustrative (offline) or empirical (a real run).
 
 ## 13. Results
 
-### 13.1 First live run — Phase-0 exhibit, rung L1
+### 13.1 First Phase-1 run — L1 at 200/cell
 
-*Scope.* This run establishes the instrument on real data and a real judge: the five
-machine-checkable benchmarks, 50 items each (500 attack attempts per benchmark across the
-transform catalog), graded by `claude-opus-5` through the Guard-routed grader in quick
-mode, at rung **L1** (metamorphic). It is a Phase-0 exhibit — one judge, one rung, a
-50-item pool — *not* the preregistered Phase-1 (200/cell, four judge architectures,
-four adversaries, all rungs). Every number is recomputed from the run's `frames.ndjson`
-by `capture.verify_bundle` (all five bundles: `ok`), and every exploit is oracle-witnessed
-(oracle-WRONG ∧ judge-PASS) with zero malformed cells.
+*Scope.* The preregistered **200-items/cell** run at rung **L1** (metamorphic), one judge
+(`claude-opus-5`, Guard-routed quick mode) and one adversary — the first real number under
+the frozen prereg. Four of the five machine-checkable benchmarks completed; every bundle is
+recomputed from its `frames.ndjson` by `capture.verify_bundle` (all `ok`), every exploit
+oracle-witnessed (oracle-WRONG ∧ judge-PASS) with zero malformed cells. GSM8K's full run
+dropped on a transient network timeout (the grader has since been hardened to absorb
+multi-minute outages) and is re-running. This is Phase-1 rung L1; the L2 adaptive-search
+wave, witnessed causal localization, the judge×adversary matrix, and convergence follow.
 
-**Table R1 — L1 exploit density (per 1,000 attempts), 2026-08-29.**
+**Table R1 — L1 exploit density at 200/cell (per 1,000 attempts), 2026-08-29.**
 
-| Benchmark | Tier | Attempts | Exploits | Density /1k | Scorer resisted |
-|---|---|---:|---:|---:|:--:|
-| HLE (checkable subset) | frontier | 500 | 25 | 50 | — |
-| GPQA-Diamond | frontier | 500 | 0 | 0 | ✓ |
-| GSM8K | control | 500 | 0 | 0 | ✓ |
-| MATH | control | 500 | 63 | 126 | — |
-| HumanEval | control | 500 | 42 | 84 | — |
-| **Total** | | **2,500** | **130** | — | 2 of 5 |
+| Benchmark | Tier | Items | Exploits | Density /1k | Judge-gaming share |
+|---|---|---:|---:|---:|---:|
+| HLE (checkable subset) | frontier | 200 | 129 | 64.5 | 85/129 (66%) |
+| GPQA-Diamond | frontier | 198 | 13 | 6.6 | 7/13 |
+| MATH | control | 200 | 215 | 107.5 | 155/215 (72%) |
+| HumanEval | control | 164 | 119 | 72.6 | 0/119 |
+| GSM8K | control | — | *re-running* | — | — |
+| **Total (4 completed)** | | | **476** | — | **247/476 (52%)** |
 
-Read the frontier tier first: **HLE — the frontier knowledge exam — is already gameable at
-L1** (50/1k, led by the judge-gaming family), the single most consequential result here,
-while **GPQA-Diamond's key-match scorer resists** at this pool size. Among the saturated
-controls, MATH and HumanEval fall — the method reproduces cleanly on well-understood numeric
-and code scorers — while GSM8K resists. The resist/fall split is not random: a scorer with a
-target it can independently re-derive (arithmetic, key-match) admits no oracle-wrong answer;
-harder or more open-ended scorers cannot cheaply re-derive the truth and leak. (SWE-bench and
-the agentic archetype of §4.6 extend the frontier tier; the agent-env result is §13.3.)
+(GPQA-Diamond and HumanEval contain 198 and 164 items — the *entire* benchmark; MATH and HLE
+use 200-item subsets. Completed-run cost: $79.)
 
-**Exploit DNA (Figure 5).** The transform × benchmark spectrum shows each benchmark
-has a *distinct* blind spot, not a uniform one: **MATH** is broadly gameable (ten of ten
-applicable transforms land, led by `authoritative_wrong` 200/1k, `hedge_flooding` 180,
-`false_citation` 160); **HumanEval** falls almost exclusively to `keyword_inflation`
-(840/1k — a buggy solution in judge-favored phrasing passes ~84% of attempts) while
-other vectors do not move its execution-adjacent judge; **HLE** falls to the judge-gaming
-family, led by the novel `false_citation` (100/1k), `calibrated_confidence` (80), and
-`sycophancy_bait` (80). This heterogeneity is itself a result: a benchmark's immune
-fingerprint is specific, so a patch tuned to one benchmark's dominant vector need not
-transfer — a prospective read on H2.
+**The frontier tier leaks.** HLE — the frontier knowledge exam — is gameable at **64.5/1k
+(129 oracle-witnessed exploits)**, and **two-thirds of them (85/129) come from the
+judge-gaming family** of §4.5: a provably-wrong answer wrapped in a fabricated citation or
+calibrated-sounding confidence slips past the judge. GPQA-Diamond's key-match scorer is far
+more robust — **6.6/1k (13 exploits)** — but *not immune*, and the 200-item pool is what
+surfaced it (the 50-item pilot showed exactly zero). The pattern holds: a scorer with a
+target it can independently re-derive (a letter key) admits few oracle-wrong answers; an
+open-ended one (HLE free-form) leaks.
 
-**The judge-gaming family is load-bearing.** 66 of the 130 L1 exploits (51%) came from the
-seven judge-gaming vectors of §4.5; on HLE, 20 of 25. That the *novel* vectors dominate
-the frontier benchmark is direct evidence the family captures real, previously unmeasured
-scorer blind spots. Total run cost: $21.70.
+**Exploit DNA is benchmark-specific — sharply so (Figure 5).** Each scorer has a distinct
+fingerprint, not a uniform weakness:
+- **HumanEval** falls almost entirely to `keyword_inflation` (**726/1k** — a buggy solution
+  in judge-favored phrasing) and is **completely immune to the judge-gaming family (0 of
+  119)**: its execution-adjacent judge ignores rhetoric.
+- **MATH** is broadly gameable (**107.5/1k**); the judge-gaming family drives **72%** of its
+  215 exploits, with the single strongest vector the structural `authoritative_wrong`.
+- **HLE** splits across structural corruption (`final_answer_corruption`,
+  `authoritative_wrong`) and the judge-gaming family, the family carrying the majority.
+
+A patch tuned to one scorer's dominant vector therefore need not transfer — a prospective
+read on H2.
+
+**The judge-gaming family is load-bearing on the frontier.** Across the run, **247 of 476
+exploits (52%) come from the seven judge-gaming vectors of §4.5**, and on the two open-ended
+scorers (HLE, MATH) they are the majority. That the *novel* vectors dominate exactly where
+the judge cannot cheaply re-derive truth is direct evidence the family captures real,
+previously unmeasured scorer blind spots.
 
 ### 13.2 What this run does and does not establish
 
-*Establishes.* The instrument runs end-to-end on real benchmarks with a live judge; L1
-metamorphic attacks produce oracle-witnessed exploits on three of five frontier
-benchmarks; the judge-gaming family is effective and the exploit fingerprint is
-benchmark-specific; every number is recomputable and tamper-evident.
+*Establishes.* The instrument runs end-to-end at preregistered scale (200/cell) on real
+benchmarks with a live judge; L1 metamorphic attacks produce oracle-witnessed exploits on
+all four completed benchmarks — **the frontier knowledge exam (HLE) among them, at
+64.5/1k** — with a sharply benchmark-specific exploit fingerprint; the judge-gaming family
+carries the majority of frontier exploits; every number is recomputable and tamper-evident.
 
-*Does not yet establish (Phase-1, in progress).* Behavior at 200/cell with confidence
-intervals; whether **L2 adaptive search** cracks the L1-resistant benchmarks; the
-adversary×judge transfer matrix and whether structural judges (self-commitment) resist
-more; convergence and patch-generalization γ under iterated repair; and — the
-program's distinguishing claim — **witnessed single-variable universe forks localizing
-the causal slice** behind a named exploit family. Those follow as the runs land.
+*Does not yet establish (in progress).* GSM8K at 200/cell (re-running after a network drop);
+whether **L2 adaptive search** raises density or cracks the near-resistant scorers (running
+now); **witnessed single-variable universe forks localizing the causal slice** behind a
+named exploit family (the program's distinguishing claim — the instrument is built, §4.6/§6,
+and runs in the L2 wave); the adversary×judge transfer matrix and whether structural judges
+(self-commitment) resist more; and convergence and patch-generalization γ under iterated
+repair. Those follow as the L2 / localization / Regime-2 bundles land.
 
 ### 13.3 The agentic environment-state archetype (deterministic exhibit)
 
