@@ -718,6 +718,39 @@ and runs in the L2 wave); the adversary×judge transfer matrix and whether struc
 (self-commitment) resist more; and convergence and patch-generalization γ under iterated
 repair. Those follow as the L2 / localization / Regime-2 bundles land.
 
+### 13.4 L2 adaptive search — *in progress*
+
+Rung L1 applies a fixed catalog. **L2** lets a budgeted adaptive attacker *search*: per item it
+tries an expanded candidate set (the base wrong-by-construction attacks, keyword inflation over
+every favored phrasing, and all seven judge-gaming vectors — 14 candidates), stopping at the
+first oracle-wrong answer the scorer passes. One episode is recorded per item, so L2 density is
+the fraction of items a budgeted attacker can crack. The naturalness screen (§4.4) stays on.
+
+**GSM8K resists adaptive search as well (0 of 200 items).** The scorer that admitted nothing at
+L1 (0/2,000 attempts) also admits nothing at L2: the search exhausted its full 14-candidate
+budget on **every** item — roughly 2,800 judge queries, $10.99 — and found **zero**
+oracle-witnessed exploits. Bundle verifies; every attempt is oracle-confirmed wrong, and not one
+was passed.
+
+This is a negative result and an important one. It bounds the method's own claims: the Wind
+Tunnel does not simply find exploits wherever it looks. Where a scorer can independently
+re-derive the answer it is grading, escalating from a fixed catalog to budgeted adaptive search
+buys the attacker **nothing** — the failure is not a lack of attacker effort but the absence of
+a gap to exploit. Reported alongside HLE's 64.5/1k (§13.1), it is the contrast that gives the
+positive results their force.
+
+*Cost-accounting note.* For L2 the authoritative run cost is the manifest's `spend.spent_usd`
+(the grader's cumulative spend across every query the search issued), **not**
+`totals.total_cost_usd`, which sums only the one retained episode per item and therefore
+under-reports an L2 search by roughly the per-item budget. For L1 the two coincide. Relatedly,
+the `transform_id` on a *non-exploit* L2 episode records the last candidate tried, not an
+attribution; only exploit episodes carry a meaningful transform.
+
+*Remaining cells (running).* L2 on MATH, GPQA-Diamond, HumanEval and HLE, and the witnessed
+single-variable causal localization for each — including whether adaptive search raises density
+on the scorers that already leak at L1, and whether it cracks GPQA-Diamond's near-resistant
+key-match scorer.
+
 ### 13.3 The agentic environment-state archetype (deterministic exhibit)
 
 *Scope.* A constructive result, not a stochastic measurement: the reward-hack catalog of
