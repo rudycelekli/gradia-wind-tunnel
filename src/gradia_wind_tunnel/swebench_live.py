@@ -168,13 +168,25 @@ def _image_present(img: str) -> bool:
         return False
 
 
-def _ensure_image(img: str, *, timeout: int = 5400) -> bool:
+def _daemon_alive() -> bool:
+    """Fast check that the Docker daemon answers. A dead daemon makes `docker pull`
+    and `docker run` hang instead of failing, which is how a sweep silently freezes."""
+    try:
+        return subprocess.run(["docker", "version", "--format", "{{.Server.Version}}"],
+                              capture_output=True, text=True, timeout=30).returncode == 0
+    except Exception:
+        return False
+
+
+def _ensure_image(img: str, *, timeout: int = 3600) -> bool:
     """Pull ONE instance image on demand, honoring the platform (prebuilt SWE-bench images
     are x86_64 only and docker-py ignores DOCKER_DEFAULT_PLATFORM). Pulling lazily per
     instance -- instead of pre-pulling the whole sample -- is what keeps a large sweep from
     filling the disk: peak usage stays ~one image instead of N."""
     if _image_present(img):
         return True
+    if not _daemon_alive():          # never wait on a dead daemon
+        return False
     cmd = ["docker", "pull"]
     plat = _docker_platform()
     if plat:
@@ -405,6 +417,10 @@ def run_live_attacks(run_id: str, *, limit: int = 3, out_dir: str | None = None,
         if free < min_free_gb:
             stopped_early = (f"stopped before {case.instance_id}: free disk {free:.1f}GB "
                              f"below the {min_free_gb:.0f}GB floor; {len(done)} instances completed")
+            break
+        if not _daemon_alive():
+            stopped_early = (f"stopped before {case.instance_id}: the Docker daemon stopped "
+                             f"responding; {len(done)} instances completed")
             break
         img = instance_image(case.instance_id)
         _ensure_image(img)
