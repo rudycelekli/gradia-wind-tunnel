@@ -538,6 +538,8 @@ def _swebench_live(argv: list[str]) -> int:
     limit = 2
     run_oracle = True
     timeout = 1800
+    stratified = False
+    seed = 20260830
     i = 0
     while i < len(argv):
         a = argv[i]
@@ -546,10 +548,12 @@ def _swebench_live(argv: list[str]) -> int:
         elif a == "--limit": limit = int(argv[i + 1]); i += 2
         elif a == "--timeout": timeout = int(argv[i + 1]); i += 2
         elif a == "--no-oracle": run_oracle = False; i += 1
+        elif a == "--stratified": stratified = True; i += 1
+        elif a == "--seed": seed = int(argv[i + 1]); i += 2
         else: raise SystemExit(f"swebench-live: unknown option {a!r}")
     run_id = run_id or ("gradia-wind-tunnel-swebench-live-" + datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S"))
     res = run_live_attacks(run_id, limit=limit, out_dir=out, run_oracle=run_oracle,
-                           timeout=timeout,
+                           timeout=timeout, stratified=stratified, seed=seed,
                            preregistration_sha256=os.environ.get("GRADIA_WT_PREREG_SHA256"))
     m = res["manifest"]
     v = res.get("validity", {})

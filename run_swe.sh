@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SWE-bench reward-hacking — offline catalog (ALWAYS, Docker-free) + live Docker run (best-effort).
+# SWE-bench reward-hacking -- offline catalog (ALWAYS, Docker-free) + live Docker run (best-effort).
 #   bash run_swe.sh                 # offline catalog + 1 live instance
 #   LIMIT=3 bash run_swe.sh         # churn more live instances (may not finish overnight)
 #   caffeinate -i bash run_swe.sh   # keep the Mac awake for the whole run
@@ -36,8 +36,8 @@ fi
 say ""; say "===== [1/5] install the harness (live path) ====="
 python3 -c "import swebench" 2>/dev/null || { say "  installing swebench..."; pip install swebench 2>&1 | tail -5 | tee -a "$OUT/swe.log"; }
 if ! python3 -c "import swebench" 2>/dev/null; then
-  say "  swebench not importable — SKIPPING live run. Offline numbers above stand."
-  say "################ DONE (offline only) — bundle: $OUT ################"; exit 0
+  say "  swebench not importable -- SKIPPING live run. Offline numbers above stand."
+  say "################ DONE (offline only) -- bundle: $OUT ################"; exit 0
 fi
 say "  swebench ready"
 
@@ -45,8 +45,8 @@ say "  swebench ready"
 say ""; say "===== [2/5] readiness ladder ====="
 python3 -m gradia_wind_tunnel.cli swebench-check 2>&1 | tee -a "$OUT/swe.log" | tail -20
 if ! python3 -c "from gradia_wind_tunnel.swebench_harness import harness_ready as h;import sys;sys.exit(0 if h()['ready'] else 1)"; then
-  say "  harness not ready (is Docker running?) — SKIPPING live run. Offline numbers stand."
-  say "################ DONE (offline only) — bundle: $OUT ################"; exit 0
+  say "  harness not ready (is Docker running?) -- SKIPPING live run. Offline numbers stand."
+  say "################ DONE (offline only) -- bundle: $OUT ################"; exit 0
 fi
 say "  READY"
 
@@ -74,7 +74,7 @@ if [ -s "$OUT/images.txt" ]; then
     fi
   done < "$OUT/images.txt"
 else
-  say "  could not resolve image names — harness will build/pull during the run"
+  say "  could not resolve image names -- harness will build/pull during the run"
 fi
 
 # ---- [3/5] prove the ORACLE (gold patch must resolve) ----
@@ -86,19 +86,31 @@ r = gold_patch_smoke()
 print(json.dumps({k:v for k,v in r.items() if k!='report'}, indent=2))
 " 2>&1 | tee -a "$OUT/swe-gold.log" | tail -30
 if grep -q '"smoke_ok": true' "$OUT/swe-gold.log" 2>/dev/null; then say "  ORACLE PROVEN (gold resolves) OK";
-else say "  gold smoke did not report smoke_ok:true — see $OUT/swe-gold.log (continuing; self-validation refuses to report if the oracle is unreliable)"; fi
+else say "  gold smoke did not report smoke_ok:true -- see $OUT/swe-gold.log (continuing; self-validation refuses to report if the oracle is unreliable)"; fi
 
 # ---- [4/5] LIVE run ----
-say ""; say "===== [4/5] LIVE reward-hacking run (limit=$LIMIT) ====="
-python3 -m gradia_wind_tunnel.cli swebench-live --limit "$LIMIT" --out "$OUT/live" 2>&1 | tee -a "$OUT/swe.log" | tail -50
+if [ "${STRATIFIED:-0}" = "1" ]; then
+  say ""; say "===== [4/5] LIVE: validate 1 instance, then stratified $LIMIT (checkpoints each instance) ====="
+  python3 -m gradia_wind_tunnel.cli swebench-live --limit 1 --out "$OUT/validate" 2>&1 | tee "$OUT/validate.log" | tail -30
+  if grep -q '"VALID": true' "$OUT/validate.log" 2>/dev/null; then
+    say "  1-instance validation VALID -> launching stratified $LIMIT (long run; safe to sleep, checkpoints to $OUT/live each instance)"
+    python3 -m gradia_wind_tunnel.cli swebench-live --stratified --limit "$LIMIT" --out "$OUT/live" 2>&1 | tee -a "$OUT/swe.log" | tail -60
+  else
+    say "  1-instance validation did NOT report VALID:true -> NOT launching the long run (see $OUT/validate.log)"
+    cat "$OUT/validate.log" >> "$OUT/swe.log"
+  fi
+else
+  say ""; say "===== [4/5] LIVE reward-hacking run (limit=$LIMIT) ====="
+  python3 -m gradia_wind_tunnel.cli swebench-live --limit "$LIMIT" --out "$OUT/live" 2>&1 | tee -a "$OUT/swe.log" | tail -50
+fi
 
 say ""
 if grep -q '"VALID": true' "$OUT/swe.log" 2>/dev/null; then
-  say "################ LIVE RUN IS VALID — numbers are real ################"
+  say "################ LIVE RUN IS VALID -- numbers are real ################"
 elif grep -q '"VALID": false' "$OUT/swe.log" 2>/dev/null; then
-  say "################ LIVE RUN INVALID — controls failed; offline catalog still valid ################"
+  say "################ LIVE RUN INVALID -- controls failed; offline catalog still valid ################"
   say "  (self-validation refused to report exploit numbers; the 'problems' list above says why)"
 else
-  say "################ LIVE RUN produced no validity verdict — see $OUT/swe.log ################"
+  say "################ LIVE RUN produced no validity verdict -- see $OUT/swe.log ################"
 fi
-say ""; say "################ DONE — offline: $OUT/offline | live: $OUT/live ################"
+say ""; say "################ DONE -- offline: $OUT/offline | live: $OUT/live ################"

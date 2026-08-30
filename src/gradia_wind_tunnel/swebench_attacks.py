@@ -186,6 +186,7 @@ class SWECase:
     fail_to_pass: tuple[str, ...]
     pass_to_pass: tuple[str, ...] = ()
     public_subset: tuple[str, ...] = ()
+    test_patch: str = ""
 
 
 def generate_offline_cases(n: int = 20, seed: int = 20260829) -> list[SWECase]:
