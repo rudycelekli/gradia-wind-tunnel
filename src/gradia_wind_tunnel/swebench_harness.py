@@ -88,12 +88,12 @@ def instance_image_name(instance_id: str, namespace: str = "swebench") -> str:
 
 
 def _prepare_dataset_file(instance_id: str, dataset_name: str, tmpdir: str) -> tuple[str, list[str]]:
-    """Write a one-row local dataset JSON for `instance_id`, injecting any fields the
-    INSTALLED swebench requires but the published dataset lacks (schemas drift across
-    major versions — 5.x added `image`). Returns (path, injected_field_names).
-
-    swebench's `--dataset_name` accepts a local JSON path, so this is the supported
-    way to feed it a row it can consume."""
+    """Fallback dataset shim: write a one-row local dataset JSON for `instance_id`.
+    Used ONLY when the official-dataset path errors on a schema mismatch. Heals the
+    one field older prebuilt-image schemas need but the published row lacks (`image`),
+    and FAILS LOUD on any other missing key rather than injecting an empty string --
+    an empty eval_script/log_parser would make the instance error silently and be
+    misread as non-resolution. Returns (path, injected_field_names)."""
     import json as _json
     import os
     from datasets import load_dataset
@@ -115,17 +115,24 @@ def _prepare_dataset_file(instance_id: str, dataset_name: str, tmpdir: str) -> t
         except Exception:
             make_test_spec = None  # type: ignore
     if make_test_spec is not None:
-        for _ in range(6):                      # heal missing keys one at a time
+        for _ in range(4):
             try:
                 make_test_spec(row); break
             except KeyError as e:
                 key = str(e).strip("'\"")
                 if key in row:
                     raise
-                row[key] = instance_image_name(instance_id) if key == "image" else ""
-                injected.append(key)
+                if key == "image":
+                    row[key] = instance_image_name(instance_id)
+                    injected.append(key)
+                    continue
+                raise RuntimeError(
+                    f"swebench make_test_spec needs {key!r}, which the dataset row lacks and "
+                    f"we refuse to fabricate (an empty value yields a broken spec that errors at "
+                    f"run time and is misread as non-resolution). Pin a swebench version whose "
+                    f"schema matches the prebuilt images, or use the official-dataset path.")
             except Exception:
-                break                            # other errors surface in the real run
+                break
     path = os.path.join(tmpdir, "wt_dataset.json")
     with open(path, "w") as f:
         _json.dump([row], f)
@@ -139,8 +146,11 @@ def evaluate_patch(instance_id: str, model_patch: str, *, run_id: str = "wt-swe"
     {"resolved": bool|None, ...} where resolved == the ORACLE (full hidden
     FAIL_TO_PASS + PASS_TO_PASS suite against the dataset's ORIGINAL tests).
 
-    `resolved is None` means UNKNOWN (the harness errored or wrote no parseable
-    report) — callers must treat unknown as *not* a verdict, never as FAIL.
+    Strategy: invoke the harness against the OFFICIAL cached dataset + --instance_ids
+    (swebench loads the complete, correct row and builds the spec itself -- no field
+    injection). Only if that errors on a schema mismatch do we fall back to a local
+    one-row shim. `resolved is None` means UNKNOWN (harness errored / no parseable
+    report) -- callers must treat unknown as *not* a verdict, never as FAIL.
     Executes real containers, so it runs on a Docker host."""
     import glob
     import json as _json
@@ -153,51 +163,83 @@ def evaluate_patch(instance_id: str, model_patch: str, *, run_id: str = "wt-swe"
     if not swebench_available():
         raise RuntimeError("swebench package not installed: `pip install swebench` on the Docker host")
 
-    with tempfile.TemporaryDirectory() as td:
-        try:
-            ds_path, injected = _prepare_dataset_file(instance_id, dataset_name, td)
-        except Exception as e:
-            return {"instance_id": instance_id, "resolved": None,
-                    "error": f"dataset preparation failed: {type(e).__name__}: {e}"[:300]}
-        preds = os.path.join(td, "preds.jsonl")
+    def _run(ds_arg: str, cwd: str) -> tuple[int, str, str]:
+        preds = os.path.join(cwd, "preds.jsonl")
         with open(preds, "w") as f:
             f.write(_json.dumps({"instance_id": instance_id,
                                  "model_name_or_path": "wind-tunnel",
                                  "model_patch": model_patch}) + "\n")
         cmd = ["python", "-m", "swebench.harness.run_evaluation",
-               "--dataset_name", ds_path, "--predictions_path", preds,
+               "--dataset_name", ds_arg, "--predictions_path", preds,
                "--run_id", run_id, "--max_workers", str(max_workers),
                "--instance_ids", instance_id]
-        try:
-            proc = subprocess.run(cmd, cwd=td, capture_output=True, text=True, timeout=timeout)
-        except subprocess.TimeoutExpired:
-            return {"instance_id": instance_id, "resolved": None,
-                    "error": f"harness timeout after {timeout}s", "injected_fields": injected}
-        resolved = None
+        proc = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout)
+        return proc.returncode, proc.stdout, proc.stderr
+
+    def _parse(cwd: str) -> tuple[Any, dict]:
+        resolved: Any = None
         report: dict[str, Any] = {}
-        for rp in sorted(glob.glob(os.path.join(td, "*.json")) + glob.glob(f"*{run_id}*.json")):
+        paths = sorted(glob.glob(os.path.join(cwd, "*.json"))
+                       + glob.glob(os.path.join(cwd, "**", "*.json"), recursive=True))
+        for rp in paths:
             try:
                 data = _json.load(open(rp))
             except Exception:
                 continue
-            if instance_id not in _json.dumps(data):
+            if not isinstance(data, dict) or instance_id not in _json.dumps(data):
                 continue
             report = data
-            if isinstance(data, dict):
-                for key in ("resolved_ids", "resolved_instances", "resolved"):
-                    v = data.get(key)
-                    if isinstance(v, list):
-                        resolved = instance_id in v
-                    elif isinstance(v, dict) and instance_id in v:
-                        resolved = bool(v[instance_id])
-                if resolved is None and instance_id in data and isinstance(data[instance_id], dict):
-                    inst = data[instance_id]
-                    resolved = bool(inst.get("resolved", inst.get("RESOLVED_FULL")))
-            break
+            errored = set(data.get("error_ids", []) or []) | set(data.get("unresolved_ids", []) or [])
+            completed = set(data.get("completed_ids", []) or [])
+            resolved_set = set(data.get("resolved_ids", []) or data.get("resolved_instances", []) or [])
+            if instance_id in errored:
+                resolved = None
+            elif instance_id in resolved_set:
+                resolved = True
+            elif completed and instance_id in completed:
+                resolved = False
+            elif instance_id in data and isinstance(data[instance_id], dict):
+                inst = data[instance_id]
+                resolved = bool(inst.get("resolved", inst.get("RESOLVED_FULL")))
+            elif "resolved_ids" in data or "resolved_instances" in data:
+                resolved = instance_id in resolved_set
+            if resolved is not None or report:
+                break
+        return resolved, report
+
+    with tempfile.TemporaryDirectory() as td:
+        use_official = os.environ.get("GRADIA_SWE_USE_OFFICIAL_DATASET", "1") != "0"
+        injected: list[str] = []
+        proc_rc = None; out = ""; err = ""
+        if use_official:
+            try:
+                proc_rc, out, err = _run(dataset_name, td)
+            except subprocess.TimeoutExpired:
+                return {"instance_id": instance_id, "resolved": None,
+                        "error": f"harness timeout after {timeout}s (official path)"}
+            resolved, report = _parse(td)
+            if resolved is not None:
+                return {"instance_id": instance_id, "resolved": resolved,
+                        "returncode": proc_rc, "report": report, "path": "official_dataset",
+                        "injected_fields": injected,
+                        "stdout_tail": out[-800:], "stderr_tail": err[-600:],
+                        "note": "resolved==oracle (full hidden suite via official cached dataset)."}
+        try:
+            ds_path, injected = _prepare_dataset_file(instance_id, dataset_name, td)
+        except Exception as e:
+            return {"instance_id": instance_id, "resolved": None,
+                    "error": f"dataset preparation failed: {type(e).__name__}: {e}"[:300],
+                    "official_stderr_tail": err[-400:] if err else ""}
+        try:
+            proc_rc, out, err = _run(ds_path, td)
+        except subprocess.TimeoutExpired:
+            return {"instance_id": instance_id, "resolved": None,
+                    "error": f"harness timeout after {timeout}s", "injected_fields": injected}
+        resolved, report = _parse(td)
         return {"instance_id": instance_id, "resolved": resolved,
-                "returncode": proc.returncode, "report": report,
+                "returncode": proc_rc, "report": report, "path": "local_shim",
                 "injected_fields": injected,
-                "stdout_tail": proc.stdout[-800:], "stderr_tail": proc.stderr[-600:],
+                "stdout_tail": out[-800:], "stderr_tail": err[-600:],
                 "note": ("resolved==oracle (full hidden suite). None => UNKNOWN: the harness "
                          "errored or wrote no parseable report; never read it as FAIL.")}
 

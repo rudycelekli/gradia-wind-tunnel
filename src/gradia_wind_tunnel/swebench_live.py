@@ -124,9 +124,36 @@ def weak_verdicts(run: WeakRun, case: SWECase) -> dict[str, bool]:
 
 
 # --- the container runner ---------------------------------------------------
+def _docker_image_lookup(instance_id: str) -> str | None:
+    """Find the instance image actually present in the local Docker registry by
+    matching the instance slug against `docker images`. The most reliable name is
+    whatever was really pulled/built, regardless of naming-convention drift across
+    swebench versions."""
+    slug = instance_id.replace("__", "_1776_").lower()
+    plain = instance_id.lower()
+    try:
+        p = subprocess.run(["docker", "images", "--format", "{{.Repository}}:{{.Tag}}"],
+                           capture_output=True, text=True, timeout=30)
+    except Exception:
+        return None
+    for ln in p.stdout.splitlines():
+        ln = ln.strip()
+        low = ln.lower()
+        if not ln or "<none>" in low or "sweb.eval" not in low:
+            continue
+        if slug in low or plain in low:
+            return ln
+    return None
+
+
 def instance_image(instance_id: str) -> str:
-    """SWE-bench instance image name. Uses swebench's own key when importable
-    (versions differ on the `__` escaping), else the documented default."""
+    """SWE-bench instance image name. Prefers the image actually present in the
+    local Docker registry (authoritative), then swebench's own computed key, then
+    the documented NAMESPACED default. The namespace matters: prebuilt images are
+    published under `swebench/...`, and a namespace-less name is never found."""
+    hit = _docker_image_lookup(instance_id)
+    if hit:
+        return hit
     try:
         from swebench.harness.test_spec.test_spec import make_test_spec  # type: ignore
     except Exception:
@@ -145,7 +172,9 @@ def instance_image(instance_id: str) -> str:
                 return key
         except Exception:
             pass
-    return f"sweb.eval.x86_64.{instance_id.replace('__', '_1776_')}:latest".lower()
+    import os as _os
+    ns = _os.environ.get("GRADIA_SWE_NAMESPACE", "swebench")
+    return f"{ns}/sweb.eval.x86_64.{instance_id.replace('__', '_1776_')}:latest".lower()
 
 
 _WEAK_SCRIPT = r'''set -o pipefail

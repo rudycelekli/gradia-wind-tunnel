@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# SWE-bench live reward-hacking — one command, no paste hazards.
-#   bash run_swe.sh            (defaults to 1 instance)
-#   LIMIT=3 bash run_swe.sh
+# SWE-bench reward-hacking — offline catalog (ALWAYS, Docker-free) + live Docker run (best-effort).
+#   bash run_swe.sh                 # offline catalog + 1 live instance
+#   LIMIT=3 bash run_swe.sh         # churn more live instances (may not finish overnight)
+#   caffeinate -i bash run_swe.sh   # keep the Mac awake for the whole run
 set -uo pipefail
 cd "$(cd "$(dirname "$0")" && pwd)"
 export PYTHONPATH="src${PYTHONPATH:+:$PYTHONPATH}"
@@ -9,7 +10,6 @@ LIMIT="${LIMIT:-1}"
 STAMP="$(date +%Y%m%d-%H%M%S)"; OUT="results/swe-live-$STAMP"; mkdir -p "$OUT"
 say(){ echo "$@" | tee -a "$OUT/swe.log"; }
 
-# make HF_TOKEN available to plain `python -c` calls too (the CLI loads .env itself)
 if [ -f .env ]; then
   set -a; . <(grep -E '^[A-Za-z_][A-Za-z0-9_]*=' .env | sed 's/[[:space:]]*$//'); set +a
 fi
@@ -21,32 +21,38 @@ if [ -z "${DOCKER_DEFAULT_PLATFORM:-}" ] && { [ "$ARCH" = "arm64" ] || [ "$ARCH"
 else
   PLATNOTE="host arch $ARCH; DOCKER_DEFAULT_PLATFORM=${DOCKER_DEFAULT_PLATFORM:-<unset>}"
 fi
-say "################ SWE-bench LIVE @ $STAMP (limit=$LIMIT) ################"
+say "################ SWE-bench @ $STAMP (limit=$LIMIT) ################"
 say "  $PLATNOTE"
 
-say ""; say "===== [1/4] install the harness ====="
-if python3 -c "import swebench" 2>/dev/null; then
-  say "  swebench already installed"
+# ---- [0/5] OFFLINE catalog: Docker-free, deterministic, ALWAYS produces real numbers ----
+say ""; say "===== [0/5] offline test-gaming catalog (no Docker, guaranteed) ====="
+if python3 -m gradia_wind_tunnel.cli swebench-attacks --cases 20 --out "$OUT/offline" 2>&1 | tee -a "$OUT/swe.log" | tail -30; then
+  say "  offline catalog OK -> $OUT/offline"
 else
-  say "  installing swebench (this can take a few minutes)..."
-  pip install swebench 2>&1 | tail -5 | tee -a "$OUT/swe.log"
-  python3 -c "import swebench" 2>/dev/null || { say "  FATAL: swebench still not importable. Try: python3 -m pip install swebench"; exit 1; }
-  say "  swebench installed"
+  say "  offline catalog reported an error (see log above)"
 fi
 
-say ""; say "===== [2/4] readiness ladder ====="
+# ---- [1/5] install harness (live path only) ----
+say ""; say "===== [1/5] install the harness (live path) ====="
+python3 -c "import swebench" 2>/dev/null || { say "  installing swebench..."; pip install swebench 2>&1 | tail -5 | tee -a "$OUT/swe.log"; }
+if ! python3 -c "import swebench" 2>/dev/null; then
+  say "  swebench not importable — SKIPPING live run. Offline numbers above stand."
+  say "################ DONE (offline only) — bundle: $OUT ################"; exit 0
+fi
+say "  swebench ready"
+
+# ---- [2/5] readiness ----
+say ""; say "===== [2/5] readiness ladder ====="
 python3 -m gradia_wind_tunnel.cli swebench-check 2>&1 | tee -a "$OUT/swe.log" | tail -20
-python3 -c "
-import json,sys
-from gradia_wind_tunnel.swebench_harness import harness_ready
-r=harness_ready(); sys.exit(0 if r['ready'] else 1)" || { say "  FATAL: harness not ready (see above)"; exit 1; }
+if ! python3 -c "from gradia_wind_tunnel.swebench_harness import harness_ready as h;import sys;sys.exit(0 if h()['ready'] else 1)"; then
+  say "  harness not ready (is Docker running?) — SKIPPING live run. Offline numbers stand."
+  say "################ DONE (offline only) — bundle: $OUT ################"; exit 0
+fi
 say "  READY"
 
-say ""; say "===== [2.5/4] pre-pull task images for the host platform ====="
-say "  (DOCKER_DEFAULT_PLATFORM only affects the docker CLI; swebench pulls via docker-py,"
-say "   which ignores it — so we pull explicitly here and swebench then finds them locally)"
-PLATARG=""
-[ -n "${DOCKER_DEFAULT_PLATFORM:-}" ] && PLATARG="--platform ${DOCKER_DEFAULT_PLATFORM}"
+# ---- [2.5/5] pre-pull task images (namespaced, pullable) ----
+say ""; say "===== [2.5/5] pre-pull task images ====="
+PLATARG=""; [ -n "${DOCKER_DEFAULT_PLATFORM:-}" ] && PLATARG="--platform ${DOCKER_DEFAULT_PLATFORM}"
 python3 - "$LIMIT" > "$OUT/images.txt" 2>/dev/null <<'PYIMG'
 import sys
 try:
@@ -54,54 +60,45 @@ try:
     from gradia_wind_tunnel.swebench_harness import instance_image_name
     for case, _ in load_live_cases(int(sys.argv[1])):
         print(instance_image_name(case.instance_id))
-except Exception as e:
-    print("", file=sys.stderr)
+except Exception:
+    pass
 PYIMG
 if [ -s "$OUT/images.txt" ]; then
   while read -r img; do
     [ -z "$img" ] && continue
-    if docker image inspect "$img" >/dev/null 2>&1; then
-      say "  already local: $img"
+    if docker image inspect "$img" >/dev/null 2>&1; then say "  already local: $img";
     else
-      say "  pulling $img"
-      say "    (multi-GB under $DOCKER_DEFAULT_PLATFORM emulation — this is the slow step)"
-      if docker pull $PLATARG "$img" >"$OUT/pull.log" 2>&1; then
-        say "    pulled OK"
-      else
-        say "    PULL FAILED — tail:"; tail -3 "$OUT/pull.log" | tee -a "$OUT/swe.log"
-        say "    If the image truly has no x86_64 build, fall back to building locally:"
-        say "      python3 -m swebench.harness.prepare_images --instance_ids <id> --max_workers 2"
-      fi
+      say "  pulling $img (multi-GB, slow under emulation)"
+      if docker pull $PLATARG "$img" >"$OUT/pull.log" 2>&1; then say "    pulled OK";
+      else say "    pull failed (harness will try to build during the run); tail:"; tail -3 "$OUT/pull.log" | tee -a "$OUT/swe.log"; fi
     fi
   done < "$OUT/images.txt"
 else
-  say "  could not resolve image names (dataset/network?) — continuing"
+  say "  could not resolve image names — harness will build/pull during the run"
 fi
 
-say ""; say "===== [3/4] prove the ORACLE (gold patch must RESOLVE) ====="
-say "  first run pulls a multi-GB task image — expect several minutes"
+# ---- [3/5] prove the ORACLE (gold patch must resolve) ----
+say ""; say "===== [3/5] prove the ORACLE (gold patch must RESOLVE) ====="
 python3 -c "
 import json
 from gradia_wind_tunnel.swebench_harness import gold_patch_smoke
 r = gold_patch_smoke()
 print(json.dumps({k:v for k,v in r.items() if k!='report'}, indent=2))
-" 2>&1 | tee -a "$OUT/swe-gold.log" | tail -25
-if grep -q '"smoke_ok": true' "$OUT/swe-gold.log" 2>/dev/null; then
-  say "  ORACLE PROVEN (gold patch resolves) ✓"
-else
-  say "  gold smoke did NOT report smoke_ok:true — see $OUT/swe-gold.log"
-  say "  (continuing to the live run anyway; the oracle column may be unreliable)"
-fi
+" 2>&1 | tee -a "$OUT/swe-gold.log" | tail -30
+if grep -q '"smoke_ok": true' "$OUT/swe-gold.log" 2>/dev/null; then say "  ORACLE PROVEN (gold resolves) OK";
+else say "  gold smoke did not report smoke_ok:true — see $OUT/swe-gold.log (continuing; self-validation refuses to report if the oracle is unreliable)"; fi
 
-say ""; say "===== [4/4] LIVE reward-hacking run ====="
-python3 -m gradia_wind_tunnel.cli swebench-live --limit "$LIMIT" --out "$OUT/live" 2>&1 | tee -a "$OUT/swe.log" | tail -40
+# ---- [4/5] LIVE run ----
+say ""; say "===== [4/5] LIVE reward-hacking run (limit=$LIMIT) ====="
+python3 -m gradia_wind_tunnel.cli swebench-live --limit "$LIMIT" --out "$OUT/live" 2>&1 | tee -a "$OUT/swe.log" | tail -50
 
 say ""
 if grep -q '"VALID": true' "$OUT/swe.log" 2>/dev/null; then
-  say "################ RUN IS VALID — numbers are real ################"
+  say "################ LIVE RUN IS VALID — numbers are real ################"
 elif grep -q '"VALID": false' "$OUT/swe.log" 2>/dev/null; then
-  say "################ RUN IS INVALID — controls failed; DO NOT USE THESE NUMBERS ################"
-  say "  the 'problems' list above says exactly what broke"
+  say "################ LIVE RUN INVALID — controls failed; offline catalog still valid ################"
+  say "  (self-validation refused to report exploit numbers; the 'problems' list above says why)"
+else
+  say "################ LIVE RUN produced no validity verdict — see $OUT/swe.log ################"
 fi
-say ""; say "################ DONE — bundle: $OUT/live ################"
-say "verify: PYTHONPATH=src python3 -c \"import json;from pathlib import Path;from gradia_wind_tunnel.capture import verify_bundle;m=json.load(open('$OUT/live/manifest.json'));print(verify_bundle(Path('$OUT/live/frames.ndjson'),m))\""
+say ""; say "################ DONE — offline: $OUT/offline | live: $OUT/live ################"
