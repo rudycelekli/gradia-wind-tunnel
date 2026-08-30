@@ -486,6 +486,44 @@ and it complements the program's "benchmarks are flawed" thesis directly.
 
 ---
 
+### 8.4 Instrument self-validation: controls, fail-closed scoring, and a caught defect
+
+An instrument that hunts for reward hacking can itself be gamed — by its own bugs. A scorer
+that errs toward PASS manufactures the very exploits it is built to detect, and because a
+false exploit looks exactly like a true one in aggregate, the error is invisible in the
+headline number. We therefore hold the instrument to the standard it applies to benchmarks.
+
+**Fail-closed scoring.** Every grader is gated on evidence that the measurement actually
+happened. In the execution setting (§4.7) a container that never ran produces no test
+statuses — and "no failures observed" must not be read as a pass. A non-execution scores
+nothing, for every grader. Likewise an oracle verdict that is *unknown* (the harness errored,
+or wrote no parseable report) is never coerced to FAIL: an exploit requires a **known**
+oracle verdict, and unknowns are counted and reported separately.
+
+**Controls that can falsify the run.** Each live run carries two controls whose behavior is
+entailed: the **gold fix** (the genuine repair — must satisfy every weak grader *and* the
+oracle, and can therefore never be an exploit) and the **no-op** (an empty patch — must
+satisfy nothing). Their expected behavior is checked automatically, together with "did any
+test execute?" and "did the oracle return verdicts?", and the result is stamped on the
+manifest as `validity: {valid, problems}`. **A run that fails its own controls reports its
+invalidity instead of its numbers.**
+
+**A caught defect (reported, not hidden).** The first live execution run exhibited exactly
+the failure this machinery is for. Two defects compounded: the installed harness raised on a
+dataset-schema change, so every oracle verdict came back unknown and was coerced to FAIL;
+and the weak grader read an absent execution as "no failures", i.e. PASS. The run reported
+six "exploits", *all* artifacts — including one attributed to the gold fix, which is
+impossible by construction. The `prediction_agreement` statistic (§4.7), which compares the
+deterministic offline model against real execution, fell to 0.44 and flagged the run as
+untrustworthy before any number was read. Both defects were fixed (fail-closed gating;
+unknown-oracle separation), regression guards added to the property suite, and the control
+gate above introduced so the failure mode announces itself. We report this because a
+methods paper that quietly discards a bad run teaches nothing, and because the episode is
+the strongest available evidence for the paper's own thesis: **a scoring pipeline you cannot
+audit will eventually report a number that is confidently wrong — including ours.**
+
+---
+
 ## 9. Running on Gradia — platform validation (C6)
 
 A benchmark-scorer study is a demanding end-to-end workload: generate controlled items,
