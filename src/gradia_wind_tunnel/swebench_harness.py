@@ -195,6 +195,24 @@ def evaluate_patch(instance_id: str, model_patch: str, *, run_id: str = "wt-swe"
     if not swebench_available():
         raise RuntimeError("swebench package not installed: `pip install swebench` on the Docker host")
 
+    # Pre-pull the task image with the correct platform BEFORE the official harness runs.
+    # The harness pulls via docker-py, which ignores DOCKER_DEFAULT_PLATFORM, so on Apple
+    # Silicon it 404s on the x86_64-only image unless it is already present locally. Pulling
+    # here (the docker CLI honors --platform) makes the harness find it cached. Best-effort:
+    # on failure the harness still tries, and a genuine miss surfaces as resolved=None.
+    if docker_available():
+        import os as _os
+        import subprocess as _sp
+        _img = instance_image_name(instance_id)
+        _plat = _os.environ.get("GRADIA_SWE_PLATFORM") or _os.environ.get("DOCKER_DEFAULT_PLATFORM")
+        try:
+            if _sp.run(["docker", "image", "inspect", _img],
+                       capture_output=True, timeout=60).returncode != 0:
+                _cmd = ["docker", "pull"] + (["--platform", _plat] if _plat else []) + [_img]
+                _sp.run(_cmd, capture_output=True, text=True, timeout=3600)
+        except Exception:
+            pass
+
     def _run(ds_arg: str, cwd: str) -> tuple[int, str, str]:
         preds = os.path.join(cwd, "preds.jsonl")
         with open(preds, "w") as f:
