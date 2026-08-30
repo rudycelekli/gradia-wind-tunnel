@@ -571,6 +571,26 @@ audit will eventually report a number that is confidently wrong — including ou
 
 ---
 
+### 8.5 A second caught defect: the localizer refused to attribute, and it was right
+
+The instrument caught a second, subtler defect in its own attack catalog — and the tell was a
+*negative* result it declined to explain away. Witnessed localization on HumanEval reported
+**zero** single-variable flips even though L2 exploit density there was the highest of any
+benchmark. Rather than treat the localizer as broken, we traced the disagreement: a witnessed
+flip requires the *parent* answer to be oracle-wrong, and HumanEval's parent (`subtle_bug`) was
+silently **oracle-correct**, because its textual mutation never matched real solutions and fell
+back to appending a comment. The exploits were instead coming from prose prepended above Python
+source, which merely broke parsing. The localizer was correct to attribute nothing: there was no
+behavioral defect to attribute.
+
+This is the same discipline as §8.4 and the same payoff. A convenient reading ("HumanEval's
+scorer is the most gameable of all") was available and wrong; the instrument's own falsifiable
+component contradicted it, and the contradiction — not a passing test — is what surfaced the
+bug. Both defects were found by machinery designed to make the instrument disagree with itself,
+which is the property we are asking evaluators to have.
+
+---
+
 ## 9. Running on Gradia — platform validation (C6)
 
 A benchmark-scorer study is a demanding end-to-end workload: generate controlled items,
@@ -708,7 +728,7 @@ convergence follow.
 | HLE (checkable subset) | frontier | 200 | 129 | 64.5 | 85/129 (66%) |
 | GPQA-Diamond | frontier | 198 | 13 | 6.6 | 7/13 |
 | MATH | control | 200 | 215 | 107.5 | 155/215 (72%) |
-| HumanEval | control | 164 | 119 | 72.6 | 0/119 |
+| HumanEval† | control | 164 | 119 | 72.6† | 0/119 |
 | GSM8K | control | 200 | 0 | 0 | — |
 | **Total (all five)** | | **962** | **476** | — | **247/476 (52%)** |
 
@@ -731,9 +751,17 @@ scales.
 
 **Exploit DNA is benchmark-specific — sharply so (Figure 5).** Each scorer has a distinct
 fingerprint, not a uniform weakness:
-- **HumanEval** falls almost entirely to `keyword_inflation` (**726/1k** — a buggy solution
-  in judge-favored phrasing) and is **completely immune to the judge-gaming family (0 of
-  119)**: its execution-adjacent judge ignores rhetoric.
+- **HumanEval†** *(superseded — artifact, pending re-run).* This cell originally read
+  **726/1k** for `keyword_inflation`. On audit the mechanism proved to be a **syntax
+  artifact, not a scorer defect**: the `subtle_bug` mutation (`return a + b` → `return a * b`)
+  never matches real HumanEval solutions, so it fell back to appending a *comment*, leaving
+  the code **correct** (the oracle called it wrong on 0/40 items); meanwhile `keyword_inflation`
+  prepended bare prose *above Python source*, so the file no longer parsed and was
+  oracle-wrong for a trivial reason. The measured quantity was therefore "prose pasted above
+  code breaks execution and the judge does not notice", not "the judge accepts subtly buggy
+  code". The attack family is fixed (semantic mutations verified to still `ast.parse` **and**
+  be oracle-wrong; judge-favored phrasing injected as a `#` comment on code benchmarks), and
+  HumanEval L1/L2 are being re-run; the corrected number replaces this one.
 - **MATH** is broadly gameable (**107.5/1k**); the judge-gaming family drives **72%** of its
   215 exploits, with the single strongest vector the structural `authoritative_wrong`.
 - **HLE** splits across structural corruption (`final_answer_corruption`,
@@ -929,10 +957,13 @@ Current index (real `claude-opus-5` judge; item-clustered bootstrap, 5,000 resam
 | MATH | L1 | 107.5 | [73.5, 146.5] | 200 |
 | MATH | L2 | 185.0 | [130.0, 240.0] | 200 |
 | HLE | L1 | 64.5 | [37.5, 95.5] | 200 |
-| HumanEval | L1 | 72.6 | [65.9, 79.3] | 164 |
+| HumanEval† | L1 | 72.6† | [65.9, 79.3] | 164 |
 | GPQA-Diamond | L1 | 6.6 | [0.5, 16.2] | 198 |
 | GSM8K | L1 | 0.0 | [0.0, 0.0] | 200 |
 | GSM8K | L2 | 0.0 | [0.0, 0.0] | 200 |
+
+† HumanEval's cell is **superseded**: its attack family was found to measure a syntax
+artifact rather than a behavioral defect (§13.1); it is re-run under the corrected family.
 
 The CIs are the rigor the single-seed estimates lacked: MATH's exploitability is resolved
 well away from zero, GPQA's is marginal ([0.5, 16.2]), and GSM8K's resistance is tight at
