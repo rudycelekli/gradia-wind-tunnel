@@ -280,7 +280,6 @@ on the reward-hacking surface the field cares about most.
 deployed policy could emit while "trying" to satisfy the checker — precisely what
 specification-gaming predicts.
 
-
 ### 4.7 SWE-bench test-gaming: the archetype in the wild
 
 SWE-bench Verified is the agentic archetype of §4.6 on real repositories, and its oracle is
@@ -909,11 +908,6 @@ significance criterion (bootstrap CI on the flip-rate difference) replacing the 
 "exceeds baseline" rule, and (c) reporting the full ranked candidate table with intervals
 rather than a single named winner. The present rule's permissiveness is disclosed here rather
 than silently repaired.
-
-*Remaining cells (running).* L2 on GPQA-Diamond, HumanEval and HLE, and the witnessed
-single-variable causal localization for each — including whether adaptive search raises density
-on the scorers that already leak at L1, and whether it cracks GPQA-Diamond's near-resistant
-key-match scorer.
 
 **The full L2 slate (complete).** Adaptive search now covers all five machine-checkable scorers,
 and the pattern is the section's headline:
