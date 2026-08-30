@@ -746,6 +746,40 @@ under-reports an L2 search by roughly the per-item budget. For L1 the two coinci
 the `transform_id` on a *non-exploit* L2 episode records the last candidate tried, not an
 attribution; only exploit episodes carry a meaningful transform.
 
+**MATH: adaptive search buys the attacker almost nothing (+0.5 pp).** MATH is the most
+gameable scorer in the slate at L1, so it is the fair test of whether *searching* beats
+*enumerating*. Comparing the two rungs requires care — L1 density is per **attempt** (every
+vector on every item) while L2 density is per **item** (one episode per item, search halted at
+the first success) — so the comparable statistic is the **per-item crack rate**:
+
+| Rung | Items cracked (≥1 oracle-witnessed exploit) | Crack rate | Spend |
+|---|---:|---:|---:|
+| L1 — fixed catalog, all 10 vectors per item | 36 / 200 | 18.0% | $13.35 |
+| L2 — adaptive search, ≤14 candidates, stops at first success | 37 / 200 | 18.5% | $13.47 |
+
+The two rungs crack **the same items**: 34 in common, 3 found only by L2, 2 found only by L1
+(L2's per-item budget can expire before an exhaustive sweep's later vectors; L2 in exchange
+tries keyword inflation over *every* favored phrasing rather than one sampled phrasing). A
+budgeted adaptive attacker therefore gains **+0.5 percentage points** over simple enumeration.
+
+Taken with GSM8K's 0% at both rungs, this is the section's central claim: **on these scorers,
+exploitability is a property of the item×scorer pair, not of attacker effort.** Which items
+leak is stable; how hard you search barely moves it. That is a *stronger* result for the
+defender than a rising L1→L2 curve would be — it means a scorer's measured exploit surface is
+close to its true one, and that patching the surface is not merely displacing a determined
+attacker to a longer search.
+
+*Caveat — L2 vector attribution is search-order-confounded (do not read it as efficacy).* On
+MATH the vector that "won" at L2 was `final_answer_corruption` 26×, `authoritative_wrong` 7×,
+`keyword_inflation` 4×, and the judge-gaming family **0×**. That is an artifact of candidate
+**order**: the search tries the base attacks first and halts at the first success, so on the
+26 items a bare corrupted final already passed, no judge-gaming vector was ever attempted. The
+exhaustive L1 sweep on the same items shows the judge-gaming family is in fact highly effective
+here (`sycophancy_bait` 25, `calibrated_confidence` 25, `hedge_flooding` 24, `format_mimicry`
+23, …). **Vector efficacy must be read from L1, which tries everything; L2 answers only "can
+this item be cracked within budget?"** We report the L2 winner distribution for completeness
+and explicitly decline to interpret it as a ranking.
+
 **The localizer declines to attribute when there is nothing to attribute.** Witnessed
 single-variable causal localization (§6, §4.6) was run on GSM8K over a 40-item cohort split
 20/20 into discovery and held-out halves, forking each of the eleven candidate construction
