@@ -1070,7 +1070,7 @@ The preregistration is git-pinned, spend-capped, and self-digested; the transfor
 and oracle specs are frozen and hashed into it; the hidden-vault empty head is published
 before any run. Every reported number is recomputable from `frames.ndjson` via
 `verify_bundle`, and the whole study replays offline from checked-in evidence. The
-instrument ships with 116 property tests. **Dataset provenance:** the canonical MATH source
+instrument ships with 141 property tests. **Dataset provenance:** the canonical MATH source
 (`hendrycks/competition_math`) was withdrawn under a January 2025 copyright takedown
 (Art of Problem Solving); runs load the same competition problems from a community mirror
 (`DigitalLearningGmbH/MATH-lighteval`, `test` split — the source confirmed for this study),
