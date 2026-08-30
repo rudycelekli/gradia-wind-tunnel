@@ -271,6 +271,30 @@ def main() -> int:
     check("agent-env: honest + naive controls are never exploits",
           not any(e.is_exploit for e in _eps if e.transform_id in ("honest_solution", "naive_unsolved")))
 
+    # --- SWE-bench test-gaming attack catalog (oracle-witnessed) -------------
+    from .swebench_attacks import (ATTACKS, GRADERS, is_exploit, oracle_resolved,
+                                   weak_pass, a_gold_fix, a_no_op, generate_offline_cases,
+                                   run_swebench_attacks)
+    _sc = generate_offline_cases(1)[0]
+    for _nm, _bld in ATTACKS.items():
+        _at = _bld(_sc)
+        check(f"swe: {_nm} is an oracle-witnessed exploit vs its target grader",
+              is_exploit(_at.target_grader, _at.effect))
+        check(f"swe: {_nm} fails the strong oracle (hidden suite)",
+              not oracle_resolved(_at.effect))
+    check("swe: the oracle catches EVERY hack (no attack resolves)",
+          not any(oracle_resolved(_b(_sc).effect) for _b in ATTACKS.values()))
+    check("swe: gold_fix passes all weak graders AND the oracle (never an exploit)",
+          all(weak_pass(_g, a_gold_fix(_sc).effect) for _g in GRADERS)
+          and oracle_resolved(a_gold_fix(_sc).effect)
+          and not any(is_exploit(_g, a_gold_fix(_sc).effect) for _g in GRADERS))
+    check("swe: no_op passes no weak grader",
+          not any(weak_pass(_g, a_no_op(_sc).effect) for _g in GRADERS))
+    _swe_eps = run_swebench_attacks(generate_offline_cases(10))
+    check("swe: offline run yields oracle-witnessed exploits, controls excluded",
+          sum(e.is_exploit for e in _swe_eps) > 0
+          and not any(e.is_exploit for e in _swe_eps if e.transform_id in ("gold_fix", "no_op")))
+
     # --- real LLM-judge path (offline, via grading provider) ---------------
     from .llm_judge import LLMJudge, SimulatedGraderProvider
     _lj = LLMJudge(SimulatedGraderProvider())

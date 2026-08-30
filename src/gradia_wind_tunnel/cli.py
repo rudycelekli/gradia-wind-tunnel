@@ -9,6 +9,7 @@
     gradia-wind-tunnel localize --benchmark math [--real] [--live] [--limit N]  # witnessed causal slice
     gradia-wind-tunnel regime2  --benchmark hle  [--real] [--live] [--limit N]  # oracle-LESS audit (no key)
     gradia-wind-tunnel swebench-check                                          # SWE-bench readiness ladder
+    gradia-wind-tunnel swebench-attacks [--cases N]                             # SWE test-gaming attack catalog
     gradia-wind-tunnel agentenv [--tasks N]                                     # agentic env-state reward-hacking
     gradia-wind-tunnel demo                     # offline end-to-end walkthrough
     gradia-wind-tunnel verify RUN.json          # recompute a run-log chain head
@@ -109,6 +110,8 @@ def main(argv: list[str] | None = None) -> int:
         return _swebench_check(rest)
     if cmd == "agentenv":
         return _agentenv(rest)
+    if cmd == "swebench-attacks":
+        return _swebench_attacks(rest)
     print(__doc__)
     return 2
 
@@ -487,6 +490,32 @@ def _agentenv(argv: list[str]) -> int:
         "all_causal_flips": loc["all_causal_flips"],
         "frames_chain_head": m["frames_chain_head"],
         "manifest_sha256": m["manifest_sha256"],
+    }, indent=2))
+    return 0
+
+
+def _swebench_attacks(argv: list[str]) -> int:
+    """SWE-bench test-gaming attack catalog: patches that pass a weak grader while the
+    full hidden suite (the oracle) fails. Offline is deterministic + recomputable;
+    real per-task numbers need Docker (DockerAttackExecutor)."""
+    from datetime import datetime, timezone
+    from .swebench_attacks import run_swebench_attacks_bundle, generate_offline_cases
+    out = run_id = None
+    n = 20
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "--out": out = argv[i + 1]; i += 2
+        elif a == "--run-id": run_id = argv[i + 1]; i += 2
+        elif a == "--cases": n = int(argv[i + 1]); i += 2
+        else: raise SystemExit(f"swebench-attacks: unknown option {a!r}")
+    run_id = run_id or ("gradia-wind-tunnel-swebench-attacks-" + datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S"))
+    m = run_swebench_attacks_bundle(run_id, generate_offline_cases(n), out_dir=out)
+    print(json.dumps({
+        "run_id": run_id, "mode": m.get("mode"),
+        "totals": m["totals"],
+        "vulnerability_matrix": m.get("vulnerability_matrix"),
+        "frames_chain_head": m["frames_chain_head"], "manifest_sha256": m["manifest_sha256"],
     }, indent=2))
     return 0
 

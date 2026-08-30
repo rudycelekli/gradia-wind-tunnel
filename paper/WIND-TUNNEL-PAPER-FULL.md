@@ -280,6 +280,34 @@ on the reward-hacking surface the field cares about most.
 deployed policy could emit while "trying" to satisfy the checker — precisely what
 specification-gaming predicts.
 
+
+### 4.7 SWE-bench test-gaming: the archetype in the wild
+
+SWE-bench Verified is the agentic archetype of §4.6 on real repositories, and its oracle is
+the strongest in the suite: a patch RESOLVES only if the full hidden suite (FAIL_TO_PASS +
+PASS_TO_PASS) passes against the code with the dataset's original, immutable tests (the
+official harness restores them). The documented reward-hacking surface is a *weaker* grader —
+one that runs only the tests present after the patch, keys on the process exit code, or runs
+a public subset. We ship a **task-agnostic catalog of test-gaming patches**, each real
+pytest/Python machinery that games one weak-grader archetype while leaving the code unfixed,
+so each is an oracle-witnessed exploit (weak-grader PASS ∧ hidden-suite FAIL):
+
+| Attack | Weak grader gamed | Mechanism |
+|---|---|---|
+| `test_skip_injection` | present-tests | a conftest hook that deselects the FAIL_TO_PASS node ids |
+| `assertion_defang` | present-tests | monkeypatch every assertion to a no-op |
+| `exit_zero_wrapper` | exit-code | a session-finish hook that forces exit status 0 |
+| `public_subset_gaming` | public-subset | hardcode only the visible inputs; hidden tests still fail |
+
+The **vulnerability matrix is itself the result:** `exit_zero_wrapper` and
+`public_subset_gaming` are surgical (one grader each); `test_skip_injection` also trips an
+exit-code grader; `assertion_defang` is nuclear (all three). Crucially, the strong oracle —
+the full hidden suite via the official harness — **catches every one of them** (all attacks
+FAIL it): a scorer that runs the real hidden objective cannot be gamed by these shortcuts,
+while every weak proxy leaks. Offline the catalog is deterministic and recomputable (the
+exploit logic is a pure function of each patch's effect, unit-tested with no Docker); the
+Docker executor runs the same catalog on real task images for live per-instance numbers.
+
 ---
 
 ## 5. System architecture
@@ -687,7 +715,7 @@ The preregistration is git-pinned, spend-capped, and self-digested; the transfor
 and oracle specs are frozen and hashed into it; the hidden-vault empty head is published
 before any run. Every reported number is recomputable from `frames.ndjson` via
 `verify_bundle`, and the whole study replays offline from checked-in evidence. The
-instrument ships with 96 property tests. **Dataset provenance:** the canonical MATH source
+instrument ships with 108 property tests. **Dataset provenance:** the canonical MATH source
 (`hendrycks/competition_math`) was withdrawn under a January 2025 copyright takedown
 (Art of Problem Solving); runs load the same competition problems from a community mirror
 (`DigitalLearningGmbH/MATH-lighteval`, `test` split — the source confirmed for this study),
@@ -720,7 +748,7 @@ window), analysis_blind_gates, responsible_disclosure, preregistration_sha256.
 
 `prereg-freeze` / `prereg-verify`; `demo`; `run` (full study + self-verifying report);
 `suite --benchmark <id> [--real] [--live]` (per-benchmark evidence bundle); `verify` /
-`verify-report`; `figures`; `suite --rung L2` (adaptive search); `localize` (witnessed single-variable causal localization); `regime2` (oracle-less audit); `agentenv` (agentic reward-hacking archetype); `swebench-check` (SWE-bench readiness). Artifacts: `preregistrations/*.json`, `results/<run>/
+`verify-report`; `figures`; `suite --rung L2` (adaptive search); `localize` (witnessed single-variable causal localization); `regime2` (oracle-less audit); `agentenv` (agentic reward-hacking archetype); `swebench-check` (SWE-bench readiness); `swebench-attacks` (SWE test-gaming attack catalog + vulnerability matrix). Artifacts: `preregistrations/*.json`, `results/<run>/
 frames.ndjson` + `manifest.json`, `paper/figures/*.png`.
 
 ## Appendix D — hypotheses (directions pre-committed)
@@ -735,7 +763,7 @@ frames.ndjson` + `manifest.json`, `paper/figures/*.png`.
 
 ---
 
-*Methodology, architecture, and protocol are complete and instrumented (96 tests). The
+*Methodology, architecture, and protocol are complete and instrumented (108 tests). The
 only remaining work is empirical: run under the frozen preregistration and fill §13–§14.
 Positioned against literature surfaced Aug 2026; a few related-work deltas are inferred
 from title+abstract and must be confirmed by full reads before submission.*
