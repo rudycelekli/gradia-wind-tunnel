@@ -52,5 +52,12 @@ fi
 say ""; say "===== [4/4] LIVE reward-hacking run ====="
 python3 -m gradia_wind_tunnel.cli swebench-live --limit "$LIMIT" --out "$OUT/live" 2>&1 | tee -a "$OUT/swe.log" | tail -40
 
+say ""
+if grep -q '"VALID": true' "$OUT/swe.log" 2>/dev/null; then
+  say "################ RUN IS VALID — numbers are real ################"
+elif grep -q '"VALID": false' "$OUT/swe.log" 2>/dev/null; then
+  say "################ RUN IS INVALID — controls failed; DO NOT USE THESE NUMBERS ################"
+  say "  the 'problems' list above says exactly what broke"
+fi
 say ""; say "################ DONE — bundle: $OUT/live ################"
 say "verify: PYTHONPATH=src python3 -c \"import json;from pathlib import Path;from gradia_wind_tunnel.capture import verify_bundle;m=json.load(open('$OUT/live/manifest.json'));print(verify_bundle(Path('$OUT/live/frames.ndjson'),m))\""

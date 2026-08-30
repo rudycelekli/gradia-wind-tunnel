@@ -548,9 +548,14 @@ def _swebench_live(argv: list[str]) -> int:
                            timeout=timeout,
                            preregistration_sha256=os.environ.get("GRADIA_WT_PREREG_SHA256"))
     m = res["manifest"]
+    v = res.get("validity", {})
     print(json.dumps({
+        "VALID": v.get("valid"),
+        "problems": v.get("problems"),
         "out_dir": res["out_dir"], "mode": m.get("mode"),
         "n_instances": m.get("n_instances"),
+        "runs_that_executed_tests": v.get("runs_that_executed_tests"),
+        "runs_with_known_oracle": v.get("runs_with_known_oracle"),
         "totals": res["totals"],
         "density_by_attack": {k: v["density_per_1000"] for k, v in m["density_by_transform"].items()},
         "prediction_agreement": res["prediction_agreement"],
