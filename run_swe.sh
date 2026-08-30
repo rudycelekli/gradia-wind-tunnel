@@ -26,7 +26,7 @@ say "  $PLATNOTE"
 
 # ---- [0/5] OFFLINE catalog: Docker-free, deterministic, ALWAYS produces real numbers ----
 say ""; say "===== [0/5] offline test-gaming catalog (no Docker, guaranteed) ====="
-if python3 -m gradia_wind_tunnel.cli swebench-attacks --cases 20 --out "$OUT/offline" 2>&1 | tee -a "$OUT/swe.log" | tail -30; then
+if python3 -m gradia_wind_tunnel.cli swebench-attacks --cases ${OFFLINE_CASES:-200} --out "$OUT/offline" 2>&1 | tee -a "$OUT/swe.log" | tail -30; then
   say "  offline catalog OK -> $OUT/offline"
 else
   say "  offline catalog reported an error (see log above)"

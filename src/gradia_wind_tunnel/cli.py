@@ -115,6 +115,10 @@ def main(argv: list[str] | None = None) -> int:
         return _swebench_attacks(rest)
     if cmd == "swebench-live":
         return _swebench_live(rest)
+    if cmd == "research":
+        return _research(rest)
+    if cmd == "index":
+        return _index(rest)
     print(__doc__)
     return 2
 
@@ -563,6 +567,60 @@ def _swebench_live(argv: list[str]) -> int:
     }, indent=2))
     return 0
 
+
+
+def _research(argv: list[str]) -> int:
+    """Regenerate every headline number + the living index from the latest evidence
+    bundles in one command; emits research_report.json + markdown tables."""
+    import json
+    from .research import run_research
+    out = "results/research-v1"; results_dir = "results"; seed = 20260830; tlimit = 100
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "--out": out = argv[i + 1]; i += 2
+        elif a == "--results-dir": results_dir = argv[i + 1]; i += 2
+        elif a == "--seed": seed = int(argv[i + 1]); i += 2
+        elif a == "--transfer-limit": tlimit = int(argv[i + 1]); i += 2
+        else: raise SystemExit(f"research: unknown option {a!r}")
+    r = run_research(out, results_dir=results_dir, seed=seed, transfer_limit=tlimit)
+    print(json.dumps({"out": out, "report_sha256": r["report_sha256"][:16],
+                      "sections": {k: ("ok" if "error" not in v else v["error"]) for k, v in r["sections"].items()},
+                      "n_bundles": len(r.get("discovered_bundles", {}))}, indent=2))
+    return 0
+
+
+def _index(argv: list[str]) -> int:
+    """Living scorer-gameability index: one recomputable, content-addressed number per
+    benchmark. Auto-discovers the newest real L1/L2 bundle per benchmark, or --bundle DIR."""
+    import json
+    from pathlib import Path
+    from .research import discover_bundles
+    from .gameability_index import build_index, index_card, verify_card
+    from .canonical import write_canonical
+    results_dir = "results"; out = None; one = None
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "--results-dir": results_dir = argv[i + 1]; i += 2
+        elif a == "--out": out = argv[i + 1]; i += 2
+        elif a == "--bundle": one = argv[i + 1]; i += 2
+        else: raise SystemExit(f"index: unknown option {a!r}")
+    if one:
+        print(json.dumps(index_card(one, label=one), indent=2)); return 0
+    disc = discover_bundles(results_dir, real_only=True)
+    canon = {k: v for k, v in disc.items() if v["rung"] in ("L1", "L2") and str(v.get("judge", "")).startswith("llm_judge")}
+    bundles = [(f"{v['benchmark']} ({v['rung']})", v["dir"]) for _, v in sorted(canon.items())]
+    idx = build_index(bundles)
+    if out:
+        Path(out).mkdir(parents=True, exist_ok=True); write_canonical(Path(out) / "index.json", idx)
+    ok = all(verify_card(c) for c in idx["cards"] if "error" not in c)
+    print(f"scorer gameability index  (cards_verify={ok}):")
+    for c in idx["cards"]:
+        if "error" in c: continue
+        lo, hi = c["ci95_bootstrap"]
+        print(f"  {c['label']:22s} {c['gameability_index_per_1000']:8.1f} /1k   95% CI [{lo}, {hi}]   n={c['n_items']}")
+    return 0
 
 if __name__ == "__main__":
     raise SystemExit(main())
