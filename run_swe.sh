@@ -14,7 +14,15 @@ if [ -f .env ]; then
   set -a; . <(grep -E '^[A-Za-z_][A-Za-z0-9_]*=' .env | sed 's/[[:space:]]*$//'); set +a
 fi
 
+ARCH="$(uname -m)"
+if [ -z "${DOCKER_DEFAULT_PLATFORM:-}" ] && { [ "$ARCH" = "arm64" ] || [ "$ARCH" = "aarch64" ]; }; then
+  export DOCKER_DEFAULT_PLATFORM=linux/amd64
+  PLATNOTE="host is $ARCH; prebuilt SWE-bench images are x86_64 -> DOCKER_DEFAULT_PLATFORM=linux/amd64 (emulated, slower)"
+else
+  PLATNOTE="host arch $ARCH; DOCKER_DEFAULT_PLATFORM=${DOCKER_DEFAULT_PLATFORM:-<unset>}"
+fi
 say "################ SWE-bench LIVE @ $STAMP (limit=$LIMIT) ################"
+say "  $PLATNOTE"
 
 say ""; say "===== [1/4] install the harness ====="
 if python3 -c "import swebench" 2>/dev/null; then

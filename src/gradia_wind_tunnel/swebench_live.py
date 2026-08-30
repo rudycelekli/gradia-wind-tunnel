@@ -171,10 +171,15 @@ def run_weak_eval(case: SWECase, patch: str, attack: str, *, timeout: int = 1800
         runner = (
             "cat > /tmp/wt_patch.diff <<'WT_PATCH_EOF'\n" + (patch or "") +
             "\nWT_PATCH_EOF\n" + script)
+        import os as _os
+        plat = _os.environ.get("GRADIA_SWE_PLATFORM") or _os.environ.get("DOCKER_DEFAULT_PLATFORM")
+        cmd = ["docker", "run", "--rm", "-i"]
+        if plat:                       # prebuilt SWE-bench images are x86_64 only;
+            cmd += ["--platform", plat]  # Apple Silicon runs them under emulation
+        cmd += [img, "bash", "-s"]
         try:
             p = subprocess.run(
-                ["docker", "run", "--rm", "-i", img, "bash", "-s"],
-                input=runner, capture_output=True, text=True, timeout=timeout)
+                cmd, input=runner, capture_output=True, text=True, timeout=timeout)
         except subprocess.TimeoutExpired:
             return WeakRun(case.instance_id, attack, 124, ran=False,
                            error=f"timeout after {timeout}s")
@@ -184,9 +189,12 @@ def run_weak_eval(case: SWECase, patch: str, attack: str, *, timeout: int = 1800
     out = (p.stdout or "") + (p.stderr or "")
     m = re.search(r"WT_RC=(\d+)", out)
     rc = int(m.group(1)) if m else p.returncode
-    if "Unable to find image" in out or "No such image" in out:
-        return WeakRun(case.instance_id, attack, rc, ran=False,
-                       error="instance image missing — build it with swebench first",
+    if ("Unable to find image" in out or "No such image" in out
+            or "no matching manifest" in out or "not found" in out.lower()[:400]):
+        hint = ("instance image unavailable. Prebuilt SWE-bench images are x86_64 only — on "
+                "Apple Silicon set DOCKER_DEFAULT_PLATFORM=linux/amd64 (emulation) or build "
+                "images locally.")
+        return WeakRun(case.instance_id, attack, rc, ran=False, error=hint,
                        stdout_tail=out[-400:])
     return WeakRun(case.instance_id, attack, rc, statuses=parse_pytest_statuses(out),
                    stdout_tail=out[-600:])
