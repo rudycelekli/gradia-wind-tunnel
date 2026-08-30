@@ -76,17 +76,72 @@ def load_items(limit: int = 50):
     return out
 
 
+def instance_image_name(instance_id: str, namespace: str = "swebench") -> str:
+    """Conventional SWE-bench instance image name (overridable via
+    GRADIA_SWE_IMAGE_TEMPLATE, e.g. 'sweb.eval.x86_64.{iid}:latest')."""
+    import os
+    iid = instance_id.replace("__", "_1776_").lower()
+    tmpl = os.environ.get("GRADIA_SWE_IMAGE_TEMPLATE")
+    if tmpl:
+        return tmpl.format(iid=iid, instance_id=instance_id)
+    return f"{namespace}/sweb.eval.x86_64.{iid}:latest"
+
+
+def _prepare_dataset_file(instance_id: str, dataset_name: str, tmpdir: str) -> tuple[str, list[str]]:
+    """Write a one-row local dataset JSON for `instance_id`, injecting any fields the
+    INSTALLED swebench requires but the published dataset lacks (schemas drift across
+    major versions — 5.x added `image`). Returns (path, injected_field_names).
+
+    swebench's `--dataset_name` accepts a local JSON path, so this is the supported
+    way to feed it a row it can consume."""
+    import json as _json
+    import os
+    from datasets import load_dataset
+
+    ds = load_dataset(dataset_name, split="test")
+    row = None
+    for r in ds:
+        if r["instance_id"] == instance_id:
+            row = dict(r); break
+    if row is None:
+        raise RuntimeError(f"instance {instance_id!r} not found in {dataset_name}")
+
+    injected: list[str] = []
+    try:
+        from swebench.harness.utils import make_test_spec  # type: ignore
+    except Exception:
+        try:
+            from swebench.harness.test_spec.test_spec import make_test_spec  # type: ignore
+        except Exception:
+            make_test_spec = None  # type: ignore
+    if make_test_spec is not None:
+        for _ in range(6):                      # heal missing keys one at a time
+            try:
+                make_test_spec(row); break
+            except KeyError as e:
+                key = str(e).strip("'\"")
+                if key in row:
+                    raise
+                row[key] = instance_image_name(instance_id) if key == "image" else ""
+                injected.append(key)
+            except Exception:
+                break                            # other errors surface in the real run
+    path = os.path.join(tmpdir, "wt_dataset.json")
+    with open(path, "w") as f:
+        _json.dump([row], f)
+    return path, injected
+
+
 def evaluate_patch(instance_id: str, model_patch: str, *, run_id: str = "wt-swe",
                    dataset_name: str = "princeton-nlp/SWE-bench_Verified",
                    max_workers: int = 1, timeout: int = 2400) -> dict[str, Any]:
-    """Run the OFFICIAL SWE-bench harness on ONE prediction via its documented CLI
-    (`python -m swebench.harness.run_evaluation`). Requires an executor (Docker or
-    the Gradia substrate) + the swebench package. Returns {"resolved": bool|None,...}
-    where resolved == the ORACLE (full hidden FAIL_TO_PASS + PASS_TO_PASS suite).
+    """Run the OFFICIAL SWE-bench harness on ONE prediction. Returns
+    {"resolved": bool|None, ...} where resolved == the ORACLE (full hidden
+    FAIL_TO_PASS + PASS_TO_PASS suite against the dataset's ORIGINAL tests).
 
-    Executes real containers, so it runs on a Docker host — not in this sandbox.
-    Parsing is defensive across swebench report-schema versions; verify the
-    resolved flag against the written report on first use."""
+    `resolved is None` means UNKNOWN (the harness errored or wrote no parseable
+    report) — callers must treat unknown as *not* a verdict, never as FAIL.
+    Executes real containers, so it runs on a Docker host."""
     import glob
     import json as _json
     import os
@@ -99,17 +154,25 @@ def evaluate_patch(instance_id: str, model_patch: str, *, run_id: str = "wt-swe"
         raise RuntimeError("swebench package not installed: `pip install swebench` on the Docker host")
 
     with tempfile.TemporaryDirectory() as td:
+        try:
+            ds_path, injected = _prepare_dataset_file(instance_id, dataset_name, td)
+        except Exception as e:
+            return {"instance_id": instance_id, "resolved": None,
+                    "error": f"dataset preparation failed: {type(e).__name__}: {e}"[:300]}
         preds = os.path.join(td, "preds.jsonl")
         with open(preds, "w") as f:
             f.write(_json.dumps({"instance_id": instance_id,
                                  "model_name_or_path": "wind-tunnel",
                                  "model_patch": model_patch}) + "\n")
         cmd = ["python", "-m", "swebench.harness.run_evaluation",
-               "--dataset_name", dataset_name, "--predictions_path", preds,
+               "--dataset_name", ds_path, "--predictions_path", preds,
                "--run_id", run_id, "--max_workers", str(max_workers),
                "--instance_ids", instance_id]
-        proc = subprocess.run(cmd, cwd=td, capture_output=True, text=True, timeout=timeout)
-        # the harness writes <model>.<run_id>.json (cwd or td); find it and read RESOLVED
+        try:
+            proc = subprocess.run(cmd, cwd=td, capture_output=True, text=True, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            return {"instance_id": instance_id, "resolved": None,
+                    "error": f"harness timeout after {timeout}s", "injected_fields": injected}
         resolved = None
         report: dict[str, Any] = {}
         for rp in sorted(glob.glob(os.path.join(td, "*.json")) + glob.glob(f"*{run_id}*.json")):
@@ -117,24 +180,26 @@ def evaluate_patch(instance_id: str, model_patch: str, *, run_id: str = "wt-swe"
                 data = _json.load(open(rp))
             except Exception:
                 continue
-            blob = _json.dumps(data)
-            if instance_id in blob:
-                report = data
+            if instance_id not in _json.dumps(data):
+                continue
+            report = data
+            if isinstance(data, dict):
                 for key in ("resolved_ids", "resolved_instances", "resolved"):
-                    v = data.get(key) if isinstance(data, dict) else None
+                    v = data.get(key)
                     if isinstance(v, list):
                         resolved = instance_id in v
                     elif isinstance(v, dict) and instance_id in v:
                         resolved = bool(v[instance_id])
-                if resolved is None and isinstance(data, dict) and instance_id in data:
+                if resolved is None and instance_id in data and isinstance(data[instance_id], dict):
                     inst = data[instance_id]
-                    if isinstance(inst, dict):
-                        resolved = bool(inst.get("resolved", inst.get("RESOLVED_FULL")))
-                break
+                    resolved = bool(inst.get("resolved", inst.get("RESOLVED_FULL")))
+            break
         return {"instance_id": instance_id, "resolved": resolved,
                 "returncode": proc.returncode, "report": report,
-                "stdout_tail": proc.stdout[-800:], "stderr_tail": proc.stderr[-400:],
-                "note": "resolved==oracle (full hidden suite). None => parse the written report by hand once."}
+                "injected_fields": injected,
+                "stdout_tail": proc.stdout[-800:], "stderr_tail": proc.stderr[-600:],
+                "note": ("resolved==oracle (full hidden suite). None => UNKNOWN: the harness "
+                         "errored or wrote no parseable report; never read it as FAIL.")}
 
 
 def gold_patch_smoke(instance_id: str | None = None, *, run_id: str = "wt-swe-smoke") -> dict[str, Any]:

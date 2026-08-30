@@ -306,6 +306,17 @@ def main() -> int:
     _wv = weak_verdicts(_wr, _lc)
     check("swe-live: one execution yields three independent grader verdicts",
           set(_wv) == set(GRADERS) and _wv["present_tests"] is False and _wv["exit_code"] is True)
+    # FAIL-CLOSED: a run that never executed must score NOTHING. (Regression guard for
+    # the fail-open defect that manufactured phantom exploits on 2026-08-29.)
+    _dead = WeakRun("i", "a", 125, statuses={}, ran=False, error="image missing")
+    check("swe-live: non-execution scores no weak grader (fail-closed)",
+          not any(weak_verdicts(_dead, _lc).values()))
+    _empty = WeakRun("i", "a", 0, statuses={})
+    check("swe-live: ran-but-collected-nothing scores no weak grader",
+          not any(weak_verdicts(_empty, _lc).values()))
+    check("swe-live: executed_tests gates on real collected statuses",
+          _dead.executed_tests is False and _empty.executed_tests is False
+          and WeakRun("i", "a", 0, statuses={"t.py::a": "PASSED"}).executed_tests is True)
     check("swe: no_op passes no weak grader",
           not any(weak_pass(_g, a_no_op(_sc).effect) for _g in GRADERS))
     _swe_eps = run_swebench_attacks(generate_offline_cases(10))
