@@ -74,7 +74,7 @@ loop — the tunnel finds the exploit (**evaluation**), the fork names the exact
 
 ### 1.3 Contributions
 
-C1–C6, above. Three further contributions extend the method: a **judge-gaming transform family** (seven oracle-witnessed vectors targeting documented LLM-judge biases: sycophancy-bait, false-citation, format-mimicry, hedge-flooding, plus three novel to this work — fake-verification, rubric-echo, calibrated-confidence) and a **two-regime auditing framework** that carries the method to *oracle-less*, judge-scored benchmarks (H6/H7) via metamorphic relations, bias probes, and judge-disagreement geometry, backed by a witnessed-substrate confabulation oracle. Third, the **agentic environment-state archetype** (§4.6) carries the oracle-witnessed method to scorers that grade a *state* rather than an answer: a typed catalog of proxy-reward hacks — a final state that satisfies the weak environment checker while the hidden objective is unmet — each causally localized to one observable variable by a witnessed fork, the reward-hacking surface agentic benchmarks make load-bearing. Section 3 formalizes the estimands; Sections 4–9 give the method and
+C1–C6, above. Three further contributions extend the method: a **judge-gaming transform family** (seven oracle-witnessed vectors targeting documented LLM-judge biases: sycophancy-bait, false-citation, format-mimicry, hedge-flooding, plus three novel to this work — fake-verification, rubric-echo, calibrated-confidence) and a **two-regime auditing framework** that carries the method to *oracle-less*, judge-scored benchmarks (H6/H7) via metamorphic relations, bias probes, and judge-disagreement geometry, backed by a witnessed-substrate confabulation oracle. Third, the **agentic environment-state archetype** (§4.6) carries the oracle-witnessed method to scorers that grade a *state* rather than an answer: a typed catalog of proxy-reward hacks — a final state that satisfies the weak environment checker while the hidden objective is unmet — each causally localized to one observable variable by a witnessed fork, the reward-hacking surface agentic benchmarks make load-bearing. Fourth, the **repair-convergence measurement** (C2): iterating attack→patch→re-attack under an autoimmunity budget, local rubric patching is shown to *relocate* rather than remove exploitability (γ_local = 0, a whack-a-mole plateau) while only a structural change to what the scorer checks converges — the first such measurement of evaluator repair. Fifth, the **living Scorer Gameability Index**: one content-addressed, recomputable number per public benchmark (density + bootstrap CI, git-pinned), distributed as a zero-install audit command and an open card schema, so the instrument becomes standing infrastructure and the artifact of responsible disclosure (§15.1). Section 3 formalizes the estimands; Sections 4–9 give the method and
 architecture with diagrams; Sections 10–11 the experimental design and metrics;
 Sections 12–14 the analysis scaffolds; Sections 15–18 disclosure, limitations, ethics,
 reproducibility. A complete, self-verifying instrument accompanies the paper (116
@@ -440,6 +440,53 @@ Over K cycles the patched scorer re-enters the adversary at L3. We classify
 preregistered decision rule, per judge architecture, and report the mean γ. Either
 answer is publishable — that is the mark of a good preregistration.
 
+### 7.3 Convergence results — repair relocates, it does not converge
+
+We ran the repair loop on the reference-free keyword scorer over a controlled procedural
+factorial (288 items, exact factor control, K=5). The result is unambiguous and is the
+paper's central safety finding.
+
+**Local rubric editing does not converge.** Held-out exploit density, measured after each
+cycle on a still-un-patched signal, is *invariant* to patching until the entire
+favored-phrase family is manually exhausted:
+
+held-out density (per 1000): `666.7 → 666.7 → 666.7 → 666.7 → 0.0` (cycles 0–4)
+→ classification **relocation_plateau**; per-cycle generalization **γ_local = 0.00**.
+
+Each patch achieves full local closure (Δ⁺ = 666.7 on the phrase it targets) yet the
+adversary relocates to the next un-patched phrase, so global exploitability is unchanged
+cycle after cycle. γ_local = 0 means a patch generalizes *nothing* to the held-out family —
+the operational definition of whack-a-mole.
+
+**Only a structural change to what the scorer checks collapses exploitability.** One patch
+from the same starting scorer, three modalities:
+
+| Modality | closure Δ⁺/1k | autoimmunity Δ⁻ | γ | post-patch global /1k | global reduction /1k |
+|---|---:|---:|---:|---:|---:|
+| rubric_edit (local) | 666.7 | 0.000 | 0.00 | **666.7** | 0.0 |
+| curriculum_retrain (family) | 666.7 | 0.000 | 1.00 | **0.0** | 666.7 |
+| judge_arch (self-commitment) | 666.7 | −1.000 | 1.00 | **0.0** | 666.7 |
+
+Local rubric editing removes **zero** global exploitability (it relocates the flaw).
+Neutralizing the whole family, or switching to a self-committing scorer that grades against
+its own solution, drives global density to zero. This is the alignment question in
+miniature: *patching a proxy moves the flaw unless you change what the proxy measures.* It
+sharpens Zhou (2026): their self-commitment defense (false-positive 0.719 → 0.012) is, in
+our decomposition, the *only* arm with γ = 1 and a global reduction to zero.
+
+**The autoimmunity sign is itself a finding.** The broken keyword scorer rejects *every*
+verified-correct answer (baseline false-rejection = 1.0 — it rewards phrasing, not
+correctness), so self-commitment's Δ⁻ = −1.0: the structural fix *lowers* false rejection
+while closing exploits. The classical autoimmunity cost (Δ⁻ > 0) appears only when the
+verifier itself solves imperfectly — the regime the real-judge runner measures. We report
+the procedural result as the best case and flag the real-judge cost as the tradeoff to
+measure, not assume.
+
+*(Current procedural run; `run_research.sh` regenerates the loop curve and the modality
+table from the latest evidence. A real-LLM-judge convergence run — rubric-editing the
+deployed frontier judge across cycles — is specified in §10 and executed on a Guard-routed
+model.)*
+
 ---
 
 ## 8. The verifiable, contamination-proof protocol (C5)
@@ -711,6 +758,8 @@ completely (0/2,000), so the method reports robustness as readily as breakage; t
 judge-gaming family carries the majority of exploits on every open-ended scorer; every number
 is recomputable and tamper-evident.
 
+*Established since (offline, recomputable).* The adversary×judge **transfer matrix** (§13.6), the **repair-convergence measurement** (§7.3 — local patching relocates, γ_local = 0; structural self-commitment cures), **bootstrap CIs** on every headline number, and the **living gameability index** (§13.5).
+
 *Does not yet establish (in progress).* Whether **L2 adaptive search** raises density or cracks the near-resistant scorers (running
 now); **witnessed single-variable universe forks localizing the causal slice** behind a
 named exploit family (the program's distinguishing claim — the instrument is built, §4.6/§6,
@@ -862,13 +911,111 @@ localization — **not** a measurement of any deployed agent's propensity to hac
 stochastic, agent-driven version (real policies acting in the environment, judged by the
 same witnessed oracle) is Phase-2 work under its own preregistration.
 
-## 14. Analysis and interpretation — *to be filled*
+### 13.5 The living Scorer Gameability Index
 
-*(Answer the central questions: does evaluator repair converge or relocate (H1/H2)? Does
-structural defense (self-commitment) help but not cure (H4)? Do named slices predict on
-held-out generation (H5)? Is there a small universal basis of judge blind spots (exploit
-DNA)? Interpret against the self-play baseline. State what the numbers do and do not
-license, per the preregistration's interpretation clause.)*
+We distill the instrument into a standing, recomputable number per benchmark: the **scorer
+gameability index** — the oracle-witnessed exploit density of a benchmark's scorer under the
+canonical adversary, with a 95% bootstrap CI, pinned to the dataset snapshot, the judge
+identity, the transform-catalog version, and the git SHA. Each index card is
+content-addressed (`card_sha256`); a third party recomputes the exact number offline from
+the published `frames.ndjson` and verifies the digest. This turns the paper into
+infrastructure — a versioned gameability score the field tracks as benchmarks and judges
+evolve, and the artifact of responsible disclosure (§15).
+
+Current index (real `claude-opus-5` judge; item-clustered bootstrap, 5,000 resamples):
+
+| Benchmark | Rung | Gameability /1k | 95% CI | n items |
+|---|---|---:|---|---:|
+| MATH | L1 | 107.5 | [73.5, 146.5] | 200 |
+| MATH | L2 | 185.0 | [130.0, 240.0] | 200 |
+| HLE | L1 | 64.5 | [37.5, 95.5] | 200 |
+| HumanEval | L1 | 72.6 | [65.9, 79.3] | 164 |
+| GPQA-Diamond | L1 | 6.6 | [0.5, 16.2] | 198 |
+| GSM8K | L1 | 0.0 | [0.0, 0.0] | 200 |
+| GSM8K | L2 | 0.0 | [0.0, 0.0] | 200 |
+
+The CIs are the rigor the single-seed estimates lacked: MATH's exploitability is resolved
+well away from zero, GPQA's is marginal ([0.5, 16.2]), and GSM8K's resistance is tight at
+zero. The index is computed by one command (`gradia-wind-tunnel index`) and re-derives
+itself from whichever evidence bundles are newest, so it stays live as SWE-bench and
+Regime-2 results land.
+
+*(Auto-generated by `run_research.sh`; numbers refresh from the latest runs.)*
+
+### 13.6 Adversary×judge transfer — gameability is a property of the paradigm
+
+We re-fired the full attack catalog against a bank of structurally different scorers — one
+rewarding deliberation phrasing, one rewarding verification/rigor rhetoric, one a permissive
+union, and an independent verifier that passes only oracle-correct answers — across the real
+benchmarks (1,000 records each). Two facts hold on every benchmark:
+
+- **Exploits are signal-specific.** An exploit that fools the deliberation-judge fools the
+  verification-judge only 23–30% of the time; the reverse only ~5%. Attacks succeed against
+  the judge whose surface cue they inject and rarely transfer to a judge rewarding a
+  different cue.
+- **The paradigm is universally gameable, and independent verification is the paradigm-level
+  defense.** Every reference-free judge has *some* attack (deliberation ~100/1k, verification
+  ~515/1k, permissive ~590/1k), while the independent verifier passes **zero** of the
+  wrong-by-construction attacks.
+
+"LLM judges are gameable" is thus a claim about the reference-free *paradigm*, not one
+checkpoint — corroborating Zhou (2026)'s cross-family transfer (Qwen/Llama/Gemma) at the
+level of attack *mechanism*. It also explains convergence: patching one signal invites
+relocation because a different judge — or the same judge after one rubric edit — is gamed by
+a different family; only changing *what is checked* escapes the game.
+
+*(Cross-architecture, offline and recomputable; a cross-*model* transfer run against a second
+Guard-routed frontier judge is specified in §10.)*
+
+### 13.7 Naturalness — the exploits are answers a model could emit
+
+The distinction between reward hacking and prompt injection rests on the exploit answers
+being *natural*. An automated naturalness screen (rejecting injection artifacts:
+judge-directed meta-text, "ignore previous", role tokens) passes **100%** of a sample of 80
+oracle-witnessed exploit answers stratified across benchmarks and attack vectors — none is
+an injection payload. To convert this from an automated to a human judgment, we ship a blind
+Likert rating instrument (question + candidate answer, attack label withheld) for
+independent raters; `score_agreement` reports screen↔human agreement and the human-rated
+natural rate when ratings return. This closes the "it's just prompt injection" objection
+with evidence rather than assertion.
+
+## 14. Analysis and interpretation
+
+The instrument answers its central questions on the evidence collected so far; final numbers
+refresh under the frozen preregistration as the SWE-bench and Regime-2 bundles land
+(`run_research.sh` regenerates every table).
+
+**Does evaluator repair converge or relocate? (H1/H2)** It relocates. Held-out exploitability
+is invariant to local rubric patching (γ_local = 0.00, relocation_plateau) until the
+exploited-signal family is manually exhausted. Repair as practiced — patch the signal the
+last attack used — does not converge; it moves the flaw. This is the paper's load-bearing
+safety result.
+
+**Does structural defense help but not cure? (H4)** On oracle-backed items it *cures*
+reference-free gaming (self-commitment drives global density to zero, γ = 1) while *lowering*
+false rejection (Δ⁻ = −1.0). The preregistered caveat holds: self-commitment can be only as
+good as the judge's own solving, so on genuinely hard, oracle-less items (Regime 2) it is
+expected to help without fully curing — the Phase-2 measurement.
+
+**Is gameability a property of the paradigm or the checkpoint?** The paradigm. Every
+reference-free scorer is gameable by *some* signal-specific attack; exploits do not transfer
+across judges rewarding different cues; only independent verification passes none. This
+generalizes the finding beyond `claude-opus-5` and matches Zhou (2026)'s cross-family
+transfer.
+
+**What does exploitability track?** Not attacker effort or model capability, but the judge's
+ability to *independently verify*. GSM8K — where a frontier judge can check the arithmetic —
+resists completely (0/2,000), exactly where Zhou (2026) reports a weaker Qwen3 judge inflating
+to 0.94; the same frontier judge leaks on MATH (107.5/1k) and the frontier knowledge exam HLE
+(64.5/1k), where it cannot independently verify the answer. Gameability is a property of the
+*item×scorer* pair: it rises precisely as the scorer's capacity to verify falls.
+
+**What the numbers do not license.** Densities are per frozen cell and per judge; they are not
+claims about a benchmark's overall worth or a model's capability. Causal attribution of an
+exploit family to a single construction variable is licensed only by the witnessed universe
+forks (§6), not by the observational per-benchmark slices; the MATH localization remains
+mechanism-positive but attribution-inconclusive at current n. Live SWE-bench numbers are
+reported only from runs whose controls self-validate (§8.4).
 
 ---
 
@@ -881,6 +1028,28 @@ result, and a **suggested patch**, before public release, with a reasonable emba
 repair loop and the hidden-suite protocol prominently — not a turnkey attack script. The
 naturalness constraint limits surfaced failures to plausible ones, not injection
 payloads. Clinical universe items are synthetic; no real records are used.
+
+### 15.1 From adversarial tool to community immune system
+
+The scorer gameability index (§13.5) is what makes disclosure constructive rather than merely
+critical. We distribute it as infrastructure, in four layers:
+
+1. **A zero-install audit command.** `uvx gradia-windtunnel index --benchmark <name>`
+   (Python-native, no install) computes a benchmark's gameability score and CI locally.
+2. **A published living index** on the program's site: each benchmark's score, CI, the
+   one-line recompute command, and the content-addressed evidence bundle. Because each card
+   self-verifies, anyone reproduces the number without trusting us.
+3. **A CI action and badge**, so a benchmark's own maintainers run the audit in their
+   pipeline and display a gameability score alongside their leaderboard — the adoption path
+   that turns a one-off paper into a standing signal.
+4. **An open card schema**, so the index is a *protocol*: third parties produce and verify
+   gameability cards independently of us.
+
+Each disclosure to a maintainer (HLE, SWE-bench, and the open-ended scorers) is a
+content-addressed index card plus oracle-witnessed examples, the repair-convergence result
+for their scorer, and a suggested structural defense — an immune response, not an exploit.
+This is the ethical spine that makes breaking famous benchmarks defensible: we hand
+maintainers a recomputable measurement and a defense, before public release.
 
 ## 16. Limitations
 
