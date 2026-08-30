@@ -29,11 +29,18 @@ if [ -z "${DOCKER_DEFAULT_PLATFORM:-}" ] && { [ "$ARCH" = "arm64" ] || [ "$ARCH"
   export DOCKER_DEFAULT_PLATFORM=linux/amd64
 fi
 
-CLEAN=$(python3 -c "import json;print(json.load(open('results/swe-merged/manifest.json'))['n_instances'])" 2>/dev/null || echo 0)
+# Count what is ALREADY MEASURED across every run dir -- not just results/swe-merged.
+# (The merge only runs at the end of a batch, so an interrupted run leaves swe-merged
+# stale; sizing the next batch off it would re-aim for the full target and overshoot.)
+CLEAN=$(python3 -c "
+from glob import glob
+from gradia_wind_tunnel.swebench_live import collect_done_ids
+d=['$BASE']+sorted(glob('results/swe-cont-*/live'))
+print(len(collect_done_ids([x for x in d if x])))" 2>/dev/null || echo 0)
 REMAIN=$(( TARGET - CLEAN )); [ "$REMAIN" -lt 0 ] && REMAIN=0
 BATCH="${LIMIT:-$REMAIN}"
 
-say "################ SWE -> TARGET $TARGET  (have $CLEAN clean, need $REMAIN more) @ $STAMP ################"
+say "################ SWE -> TARGET $TARGET  (have $CLEAN measured, need $REMAIN more) @ $STAMP ################"
 if [ "$REMAIN" -le 0 ]; then
   say "  TARGET ALREADY REACHED ($CLEAN >= $TARGET). Fold into the paper:  bash run_research.sh"; exit 0
 fi
