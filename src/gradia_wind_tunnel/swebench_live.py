@@ -146,6 +146,54 @@ def _docker_image_lookup(instance_id: str) -> str | None:
     return None
 
 
+def _free_gb(path: str = "/") -> float:
+    """Free space (GB) on the volume backing Docker storage. Best-effort."""
+    import shutil
+    try:
+        return shutil.disk_usage(path).free / (1024 ** 3)
+    except Exception:
+        return float("inf")
+
+
+def _docker_platform():
+    import os as _os
+    return _os.environ.get("GRADIA_SWE_PLATFORM") or _os.environ.get("DOCKER_DEFAULT_PLATFORM")
+
+
+def _image_present(img: str) -> bool:
+    try:
+        return subprocess.run(["docker", "image", "inspect", img],
+                              capture_output=True, text=True, timeout=60).returncode == 0
+    except Exception:
+        return False
+
+
+def _ensure_image(img: str, *, timeout: int = 5400) -> bool:
+    """Pull ONE instance image on demand, honoring the platform (prebuilt SWE-bench images
+    are x86_64 only and docker-py ignores DOCKER_DEFAULT_PLATFORM). Pulling lazily per
+    instance -- instead of pre-pulling the whole sample -- is what keeps a large sweep from
+    filling the disk: peak usage stays ~one image instead of N."""
+    if _image_present(img):
+        return True
+    cmd = ["docker", "pull"]
+    plat = _docker_platform()
+    if plat:
+        cmd += ["--platform", plat]
+    try:
+        return subprocess.run(cmd + [img], capture_output=True, text=True, timeout=timeout).returncode == 0
+    except Exception:
+        return False
+
+
+def _remove_image(img: str) -> bool:
+    """Delete an instance image once its instance is finished (disk hygiene for long runs)."""
+    try:
+        return subprocess.run(["docker", "image", "rm", "-f", img],
+                              capture_output=True, text=True, timeout=900).returncode == 0
+    except Exception:
+        return False
+
+
 def instance_image(instance_id: str) -> str:
     """Image to run for this instance. Prefer the image already in the local Docker
     registry (pre-pulled, authoritative), then the enriched dataset's own `image`
@@ -331,6 +379,7 @@ def _finalize_swe_bundle(run_id, out, cases_done, episodes, observations, agree,
 def run_live_attacks(run_id: str, *, limit: int = 3, out_dir: str | None = None,
                      run_oracle: bool = True, with_controls: bool = True,
                      timeout: int = 1800, stratified: bool = False, seed: int = 20260830,
+                     prune_images: bool = True, min_free_gb: float = 20.0,
                      preregistration_sha256: str | None = None) -> dict:
     """THE live SWE reward-hacking measurement. Per (instance, patch): one weak container
     run -> three proxy verdicts; plus the official harness for the oracle. Checkpoints a
@@ -350,7 +399,15 @@ def run_live_attacks(run_id: str, *, limit: int = 3, out_dir: str | None = None,
     agree = disagree = 0
     done: list = []
     result = None
+    stopped_early = ""
     for ci, (case, gold) in enumerate(cases, 1):
+        free = _free_gb()
+        if free < min_free_gb:
+            stopped_early = (f"stopped before {case.instance_id}: free disk {free:.1f}GB "
+                             f"below the {min_free_gb:.0f}GB floor; {len(done)} instances completed")
+            break
+        img = instance_image(case.instance_id)
+        _ensure_image(img)
         for name, build in builders.items():
             atk = build(case)
             patch = gold if name == "gold_fix" else atk.patch
@@ -396,10 +453,15 @@ def run_live_attacks(run_id: str, *, limit: int = 3, out_dir: str | None = None,
         try:
             (out / "progress.txt").write_text(
                 f"{ci}/{len(cases)} instances done; valid={result['validity']['valid']}; "
-                f"exploits={result['totals']['exploits']}\n")
+                f"exploits={result['totals']['exploits']}; free_disk_gb={_free_gb():.1f}\n")
         except Exception:
             pass
+        if prune_images:
+            _remove_image(img)          # keep peak disk at ~one instance image
     if result is None:
         result = _finalize_swe_bundle(run_id, out, done, episodes, observations, agree, disagree,
                                       run_oracle, with_controls, preregistration_sha256)
+    if stopped_early:
+        result["stopped_early"] = stopped_early
+    result["instances_completed"] = len(done)
     return result

@@ -492,6 +492,8 @@ def _agentenv(argv: list[str]) -> int:
     print(json.dumps({
         "out_dir": res["out_dir"],
         "archetype": "agentic_environment_state_scoring",
+        "instances_completed": res.get("instances_completed"),
+        "stopped_early": res.get("stopped_early"),
         "totals": res["totals"],
         "density_by_hack": {k: v["density_per_1000"] for k, v in m["density_by_transform"].items()},
         "witness_engine": loc["witness_engine"],
@@ -542,6 +544,8 @@ def _swebench_live(argv: list[str]) -> int:
     timeout = 1800
     stratified = False
     seed = 20260830
+    prune_images = True
+    min_free_gb = 20.0
     i = 0
     while i < len(argv):
         a = argv[i]
@@ -552,10 +556,13 @@ def _swebench_live(argv: list[str]) -> int:
         elif a == "--no-oracle": run_oracle = False; i += 1
         elif a == "--stratified": stratified = True; i += 1
         elif a == "--seed": seed = int(argv[i + 1]); i += 2
+        elif a == "--keep-images": prune_images = False; i += 1
+        elif a == "--min-free-gb": min_free_gb = float(argv[i + 1]); i += 2
         else: raise SystemExit(f"swebench-live: unknown option {a!r}")
     run_id = run_id or ("gradia-wind-tunnel-swebench-live-" + datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S"))
     res = run_live_attacks(run_id, limit=limit, out_dir=out, run_oracle=run_oracle,
                            timeout=timeout, stratified=stratified, seed=seed,
+                           prune_images=prune_images, min_free_gb=min_free_gb,
                            preregistration_sha256=os.environ.get("GRADIA_WT_PREREG_SHA256"))
     m = res["manifest"]
     v = res.get("validity", {})
@@ -566,6 +573,8 @@ def _swebench_live(argv: list[str]) -> int:
         "n_instances": m.get("n_instances"),
         "runs_that_executed_tests": v.get("runs_that_executed_tests"),
         "runs_with_known_oracle": v.get("runs_with_known_oracle"),
+        "instances_completed": res.get("instances_completed"),
+        "stopped_early": res.get("stopped_early"),
         "totals": res["totals"],
         "density_by_attack": {k: v["density_per_1000"] for k, v in m["density_by_transform"].items()},
         "prediction_agreement": res["prediction_agreement"],

@@ -50,31 +50,19 @@ if ! python3 -c "from gradia_wind_tunnel.swebench_harness import harness_ready a
 fi
 say "  READY"
 
-# ---- [2.5/5] pre-pull task images (namespaced, pullable) ----
-say ""; say "===== [2.5/5] pre-pull task images ====="
-PLATARG=""; [ -n "${DOCKER_DEFAULT_PLATFORM:-}" ] && PLATARG="--platform ${DOCKER_DEFAULT_PLATFORM}"
-python3 - "$LIMIT" > "$OUT/images.txt" 2>/dev/null <<'PYIMG'
-import sys
-try:
-    from gradia_wind_tunnel.swebench_live import load_live_cases
-    from gradia_wind_tunnel.swebench_harness import instance_image_name
-    for case, _ in load_live_cases(int(sys.argv[1])):
-        print(instance_image_name(case.instance_id))
-except Exception:
-    pass
-PYIMG
-if [ -s "$OUT/images.txt" ]; then
-  while read -r img; do
-    [ -z "$img" ] && continue
-    if docker image inspect "$img" >/dev/null 2>&1; then say "  already local: $img";
-    else
-      say "  pulling $img (multi-GB, slow under emulation)"
-      if docker pull $PLATARG "$img" >"$OUT/pull.log" 2>&1; then say "    pulled OK";
-      else say "    pull failed (harness will try to build during the run); tail:"; tail -3 "$OUT/pull.log" | tee -a "$OUT/swe.log"; fi
-    fi
-  done < "$OUT/images.txt"
-else
-  say "  could not resolve image names -- harness will build/pull during the run"
+# ---- [2.5/5] disk preflight (images are pulled lazily, one at a time) ----
+say ""; say "===== [2.5/5] disk preflight ====="
+FREE_GB=$(df -g / 2>/dev/null | awk 'NR==2{print $4}')
+[ -z "$FREE_GB" ] && FREE_GB=$(df -k / 2>/dev/null | awk 'NR==2{printf "%d", $4/1048576}')
+MIN_FREE="${MIN_FREE_GB:-20}"
+say "  free disk: ${FREE_GB}GB (floor ${MIN_FREE}GB)"
+say "  task images are pulled ONE AT A TIME and deleted after each instance, so peak"
+say "  disk stays ~one image regardless of LIMIT (the old mass pre-pull filled the disk)."
+if [ "${FREE_GB:-0}" -lt "$MIN_FREE" ] 2>/dev/null; then
+  say "  LOW DISK -- reclaim space before the live run:"
+  say "    docker system prune -af --volumes"
+  say "  (skipping the live run; the offline catalog above is still valid)"
+  say "################ DONE (offline only) -- bundle: $OUT ################"; exit 0
 fi
 
 # ---- [3/5] prove the ORACLE (gold patch must resolve) ----
@@ -91,17 +79,17 @@ else say "  gold smoke did not report smoke_ok:true -- see $OUT/swe-gold.log (co
 # ---- [4/5] LIVE run ----
 if [ "${STRATIFIED:-0}" = "1" ]; then
   say ""; say "===== [4/5] LIVE: validate 1 instance, then stratified $LIMIT (checkpoints each instance) ====="
-  python3 -m gradia_wind_tunnel.cli swebench-live --limit 1 --out "$OUT/validate" 2>&1 | tee "$OUT/validate.log" | tail -30
+  python3 -m gradia_wind_tunnel.cli swebench-live --limit 1 --min-free-gb "${MIN_FREE_GB:-20}" --out "$OUT/validate" 2>&1 | tee "$OUT/validate.log" | tail -30
   if grep -q '"VALID": true' "$OUT/validate.log" 2>/dev/null; then
     say "  1-instance validation VALID -> launching stratified $LIMIT (long run; safe to sleep, checkpoints to $OUT/live each instance)"
-    python3 -m gradia_wind_tunnel.cli swebench-live --stratified --limit "$LIMIT" --out "$OUT/live" 2>&1 | tee -a "$OUT/swe.log" | tail -60
+    python3 -m gradia_wind_tunnel.cli swebench-live --stratified --limit "$LIMIT" --min-free-gb "${MIN_FREE_GB:-20}" --out "$OUT/live" 2>&1 | tee -a "$OUT/swe.log" | tail -60
   else
     say "  1-instance validation did NOT report VALID:true -> NOT launching the long run (see $OUT/validate.log)"
     cat "$OUT/validate.log" >> "$OUT/swe.log"
   fi
 else
   say ""; say "===== [4/5] LIVE reward-hacking run (limit=$LIMIT) ====="
-  python3 -m gradia_wind_tunnel.cli swebench-live --limit "$LIMIT" --out "$OUT/live" 2>&1 | tee -a "$OUT/swe.log" | tail -50
+  python3 -m gradia_wind_tunnel.cli swebench-live --limit "$LIMIT" --min-free-gb "${MIN_FREE_GB:-20}" --out "$OUT/live" 2>&1 | tee -a "$OUT/swe.log" | tail -50
 fi
 
 say ""
