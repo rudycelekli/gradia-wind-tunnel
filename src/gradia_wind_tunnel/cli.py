@@ -10,6 +10,7 @@
     gradia-wind-tunnel regime2  --benchmark hle  [--real] [--live] [--limit N]  # oracle-LESS audit (no key)
     gradia-wind-tunnel swebench-check                                          # SWE-bench readiness ladder
     gradia-wind-tunnel swebench-attacks [--cases N]                             # SWE test-gaming attack catalog
+    gradia-wind-tunnel swebench-live [--limit N] [--no-oracle]                  # LIVE SWE run (needs Docker)
     gradia-wind-tunnel agentenv [--tasks N]                                     # agentic env-state reward-hacking
     gradia-wind-tunnel demo                     # offline end-to-end walkthrough
     gradia-wind-tunnel verify RUN.json          # recompute a run-log chain head
@@ -112,6 +113,8 @@ def main(argv: list[str] | None = None) -> int:
         return _agentenv(rest)
     if cmd == "swebench-attacks":
         return _swebench_attacks(rest)
+    if cmd == "swebench-live":
+        return _swebench_live(rest)
     print(__doc__)
     return 2
 
@@ -515,6 +518,42 @@ def _swebench_attacks(argv: list[str]) -> int:
         "run_id": run_id, "mode": m.get("mode"),
         "totals": m["totals"],
         "vulnerability_matrix": m.get("vulnerability_matrix"),
+        "frames_chain_head": m["frames_chain_head"], "manifest_sha256": m["manifest_sha256"],
+    }, indent=2))
+    return 0
+
+
+def _swebench_live(argv: list[str]) -> int:
+    """LIVE SWE-bench reward-hacking on real task containers. One container run per
+    (instance, patch) read by three weak graders; the oracle is the official harness.
+    Needs Docker + `pip install swebench`. Start small: --limit 1."""
+    import os
+    from datetime import datetime, timezone
+    from .swebench_live import run_live_attacks
+    out = run_id = None
+    limit = 2
+    run_oracle = True
+    timeout = 1800
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "--out": out = argv[i + 1]; i += 2
+        elif a == "--run-id": run_id = argv[i + 1]; i += 2
+        elif a == "--limit": limit = int(argv[i + 1]); i += 2
+        elif a == "--timeout": timeout = int(argv[i + 1]); i += 2
+        elif a == "--no-oracle": run_oracle = False; i += 1
+        else: raise SystemExit(f"swebench-live: unknown option {a!r}")
+    run_id = run_id or ("gradia-wind-tunnel-swebench-live-" + datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S"))
+    res = run_live_attacks(run_id, limit=limit, out_dir=out, run_oracle=run_oracle,
+                           timeout=timeout,
+                           preregistration_sha256=os.environ.get("GRADIA_WT_PREREG_SHA256"))
+    m = res["manifest"]
+    print(json.dumps({
+        "out_dir": res["out_dir"], "mode": m.get("mode"),
+        "n_instances": m.get("n_instances"),
+        "totals": res["totals"],
+        "density_by_attack": {k: v["density_per_1000"] for k, v in m["density_by_transform"].items()},
+        "prediction_agreement": res["prediction_agreement"],
         "frames_chain_head": m["frames_chain_head"], "manifest_sha256": m["manifest_sha256"],
     }, indent=2))
     return 0

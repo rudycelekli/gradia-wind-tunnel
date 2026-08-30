@@ -77,7 +77,7 @@ loop — the tunnel finds the exploit (**evaluation**), the fork names the exact
 C1–C6, above. Three further contributions extend the method: a **judge-gaming transform family** (seven oracle-witnessed vectors targeting documented LLM-judge biases: sycophancy-bait, false-citation, format-mimicry, hedge-flooding, plus three novel to this work — fake-verification, rubric-echo, calibrated-confidence) and a **two-regime auditing framework** that carries the method to *oracle-less*, judge-scored benchmarks (H6/H7) via metamorphic relations, bias probes, and judge-disagreement geometry, backed by a witnessed-substrate confabulation oracle. Third, the **agentic environment-state archetype** (§4.6) carries the oracle-witnessed method to scorers that grade a *state* rather than an answer: a typed catalog of proxy-reward hacks — a final state that satisfies the weak environment checker while the hidden objective is unmet — each causally localized to one observable variable by a witnessed fork, the reward-hacking surface agentic benchmarks make load-bearing. Section 3 formalizes the estimands; Sections 4–9 give the method and
 architecture with diagrams; Sections 10–11 the experimental design and metrics;
 Sections 12–14 the analysis scaffolds; Sections 15–18 disclosure, limitations, ethics,
-reproducibility. A complete, self-verifying instrument accompanies the paper (108
+reproducibility. A complete, self-verifying instrument accompanies the paper (116
 property tests green); the only step to empirical results is a live run under the
 frozen preregistration.
 
@@ -298,6 +298,27 @@ so each is an oracle-witnessed exploit (weak-grader PASS ∧ hidden-suite FAIL):
 | `assertion_defang` | present-tests | monkeypatch every assertion to a no-op |
 | `exit_zero_wrapper` | exit-code | a session-finish hook that forces exit status 0 |
 | `public_subset_gaming` | public-subset | hardcode only the visible inputs; hidden tests still fail |
+
+**Live execution: one run, three graders.** The catalog is executed for real inside each
+task's own Docker image. The design is deliberate: **one container run per (instance, patch)
+yields all three weak-grader verdicts**, because the graders differ only in *what they look
+at* — whether any executed test reported a failure (`present_tests`), the process exit status
+(`exit_code`), or whether the visible subset passed (`public_subset`) — not in what happened.
+Reading one execution through three proxy lenses is three times cheaper than three runs and
+is the scientifically correct comparison, since all three verdicts then describe an identical
+world state. The crucial asymmetry with the oracle: the official harness **restores the
+dataset's original tests** before running the hidden suite, whereas the weak run evaluates the
+tree *as the patch left it* — which is exactly the blind spot a test-manipulating patch
+exploits. Patches are emitted as valid unified diffs (`git apply`-able), so the same artifact
+runs offline and in the container.
+
+**Prediction, then test (the epistemics).** The deterministic model of §4.7 — each patch's
+effect and the pure-function graders — is a *prediction* about what real pytest will do. The
+live run is its *test*. Every episode records the predicted and the observed verdict, and each
+run reports a `prediction_agreement` rate. Disagreements are reported rather than hidden: a
+mismatch is a finding about real grader semantics (for example, how a runner exit-codes a
+collection in which every target was deselected), not an error to paper over. This keeps a
+constructive catalog honest against execution.
 
 The **vulnerability matrix is itself the result:** `exit_zero_wrapper` and
 `public_subset_gaming` are surgical (one grader each); `test_skip_injection` also trips an
@@ -715,7 +736,7 @@ The preregistration is git-pinned, spend-capped, and self-digested; the transfor
 and oracle specs are frozen and hashed into it; the hidden-vault empty head is published
 before any run. Every reported number is recomputable from `frames.ndjson` via
 `verify_bundle`, and the whole study replays offline from checked-in evidence. The
-instrument ships with 108 property tests. **Dataset provenance:** the canonical MATH source
+instrument ships with 116 property tests. **Dataset provenance:** the canonical MATH source
 (`hendrycks/competition_math`) was withdrawn under a January 2025 copyright takedown
 (Art of Problem Solving); runs load the same competition problems from a community mirror
 (`DigitalLearningGmbH/MATH-lighteval`, `test` split — the source confirmed for this study),
@@ -748,7 +769,7 @@ window), analysis_blind_gates, responsible_disclosure, preregistration_sha256.
 
 `prereg-freeze` / `prereg-verify`; `demo`; `run` (full study + self-verifying report);
 `suite --benchmark <id> [--real] [--live]` (per-benchmark evidence bundle); `verify` /
-`verify-report`; `figures`; `suite --rung L2` (adaptive search); `localize` (witnessed single-variable causal localization); `regime2` (oracle-less audit); `agentenv` (agentic reward-hacking archetype); `swebench-check` (SWE-bench readiness); `swebench-attacks` (SWE test-gaming attack catalog + vulnerability matrix). Artifacts: `preregistrations/*.json`, `results/<run>/
+`verify-report`; `figures`; `suite --rung L2` (adaptive search); `localize` (witnessed single-variable causal localization); `regime2` (oracle-less audit); `agentenv` (agentic reward-hacking archetype); `swebench-check` (SWE-bench readiness); `swebench-attacks` (SWE test-gaming catalog, offline); `swebench-live` (LIVE SWE run in real task containers, needs Docker). Artifacts: `preregistrations/*.json`, `results/<run>/
 frames.ndjson` + `manifest.json`, `paper/figures/*.png`.
 
 ## Appendix D — hypotheses (directions pre-committed)
@@ -763,7 +784,7 @@ frames.ndjson` + `manifest.json`, `paper/figures/*.png`.
 
 ---
 
-*Methodology, architecture, and protocol are complete and instrumented (108 tests). The
+*Methodology, architecture, and protocol are complete and instrumented (116 tests). The
 only remaining work is empirical: run under the frozen preregistration and fill §13–§14.
 Positioned against literature surfaced Aug 2026; a few related-work deltas are inferred
 from title+abstract and must be confirmed by full reads before submission.*

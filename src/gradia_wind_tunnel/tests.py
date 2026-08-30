@@ -288,6 +288,24 @@ def main() -> int:
           all(weak_pass(_g, a_gold_fix(_sc).effect) for _g in GRADERS)
           and oracle_resolved(a_gold_fix(_sc).effect)
           and not any(is_exploit(_g, a_gold_fix(_sc).effect) for _g in GRADERS))
+    from .swebench_attacks import is_unified_diff
+    for _nm, _bld in ATTACKS.items():
+        check(f"swe: {_nm} emits a git-applicable unified diff",
+              is_unified_diff(_bld(_sc).patch))
+    from .swebench_live import (parse_pytest_statuses, weak_verdicts, WeakRun,
+                                test_targets, node_file)
+    _lc = generate_offline_cases(1)[0]
+    check("swe-live: test targets derive from node ids",
+          all(t.endswith(".py") for t in test_targets(_lc)))
+    check("swe-live: node_file splits pytest ids, passes dotted through",
+          node_file("a/b.py::T::t") == "a/b.py" and node_file("django.T.t") is None)
+    _st = parse_pytest_statuses("PASSED x.py::a\nFAILED x.py::b\n")
+    check("swe-live: pytest -rA output parses to per-node statuses",
+          _st == {"x.py::a": "PASSED", "x.py::b": "FAILED"})
+    _wr = WeakRun("i", "a", 0, statuses=_st)
+    _wv = weak_verdicts(_wr, _lc)
+    check("swe-live: one execution yields three independent grader verdicts",
+          set(_wv) == set(GRADERS) and _wv["present_tests"] is False and _wv["exit_code"] is True)
     check("swe: no_op passes no weak grader",
           not any(weak_pass(_g, a_no_op(_sc).effect) for _g in GRADERS))
     _swe_eps = run_swebench_attacks(generate_offline_cases(10))
