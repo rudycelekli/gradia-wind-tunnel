@@ -746,6 +746,19 @@ under-reports an L2 search by roughly the per-item budget. For L1 the two coinci
 the `transform_id` on a *non-exploit* L2 episode records the last candidate tried, not an
 attribution; only exploit episodes carry a meaningful transform.
 
+**The localizer declines to attribute when there is nothing to attribute.** Witnessed
+single-variable causal localization (§6, §4.6) was run on GSM8K over a 40-item cohort split
+20/20 into discovery and held-out halves, forking each of the eleven candidate construction
+variables under an evolution witness. Because GSM8K yields no exploits at either rung, every
+candidate returned a witnessed flip-rate of **0**, the named slice failed prospective
+validation (`validated: false`), and **no** causal witness was emitted — while the witness
+machinery itself verified correctly throughout (`single_variable_verified` true for every
+fork, before/after world roots distinct). This is the localizer's own negative control: a
+causal instrument that manufactured an attribution here — naming a "cause" of an effect that
+does not exist — would be worthless on the benchmarks where effects do exist. Meaningful
+localizations come from the leaking scorers (MATH, HumanEval, HLE), reported as those cells
+land.
+
 *Remaining cells (running).* L2 on MATH, GPQA-Diamond, HumanEval and HLE, and the witnessed
 single-variable causal localization for each — including whether adaptive search raises density
 on the scorers that already leak at L1, and whether it cracks GPQA-Diamond's near-resistant
