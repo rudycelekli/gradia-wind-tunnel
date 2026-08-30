@@ -716,6 +716,12 @@ def _realjudge(argv: list[str]) -> int:
         elif a == "--out": out = argv[i + 1]; i += 2
         else: raise SystemExit(f"realjudge: unknown option {a!r}")
     if not bid: raise SystemExit("realjudge: --benchmark required")
+    import os
+    # Same env fallback every other live command uses -- without this, --real silently
+    # fell back to a localhost gateway and died with "Connection refused".
+    gateway = gateway or os.environ.get("GRADIA_GUARD_GATEWAY_URL")
+    if real and not gateway:
+        raise SystemExit("realjudge --real needs --gateway (or GRADIA_GUARD_GATEWAY_URL in .env)")
     b = run_convergence_realjudge(bid, real=real, model=model, gateway=gateway, K=K,
                                   limit=limit, seed=seed, out_dir=out)
     print(json.dumps({"provider": b["provider"], "judge": b.get("judge"),

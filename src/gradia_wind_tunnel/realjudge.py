@@ -144,7 +144,9 @@ def run_convergence_realjudge(benchmark_id: str, *, real: bool = False, model: s
     gold_by_q = {it.question: it.gold for it in items}
     if real:
         from .llm_judge import AnthropicGuardGrader
-        provider = AnthropicGuardGrader(model=model, gateway_base_url=gateway or "http://127.0.0.1:8787")
+        import os as _os
+        _gw = gateway or _os.environ.get("GRADIA_GUARD_GATEWAY_URL") or "http://127.0.0.1:8787"
+        provider = AnthropicGuardGrader(model=model, gateway_base_url=_gw)
         solver = None   # real judge solves for itself under the self-commit rubric
     else:
         provider = RubricAwareSimulatedGrader(solver=lambda q: gold_by_q.get(q))
