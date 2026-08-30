@@ -77,7 +77,7 @@ loop — the tunnel finds the exploit (**evaluation**), the fork names the exact
 C1–C6, above. Three further contributions extend the method: a **judge-gaming transform family** (seven oracle-witnessed vectors targeting documented LLM-judge biases: sycophancy-bait, false-citation, format-mimicry, hedge-flooding, plus three novel to this work — fake-verification, rubric-echo, calibrated-confidence) and a **two-regime auditing framework** that carries the method to *oracle-less*, judge-scored benchmarks (H6/H7) via metamorphic relations, bias probes, and judge-disagreement geometry, backed by a witnessed-substrate confabulation oracle. Third, the **agentic environment-state archetype** (§4.6) carries the oracle-witnessed method to scorers that grade a *state* rather than an answer: a typed catalog of proxy-reward hacks — a final state that satisfies the weak environment checker while the hidden objective is unmet — each causally localized to one observable variable by a witnessed fork, the reward-hacking surface agentic benchmarks make load-bearing. Section 3 formalizes the estimands; Sections 4–9 give the method and
 architecture with diagrams; Sections 10–11 the experimental design and metrics;
 Sections 12–14 the analysis scaffolds; Sections 15–18 disclosure, limitations, ethics,
-reproducibility. A complete, self-verifying instrument accompanies the paper (96
+reproducibility. A complete, self-verifying instrument accompanies the paper (108
 property tests green); the only step to empirical results is a live run under the
 frozen preregistration.
 
