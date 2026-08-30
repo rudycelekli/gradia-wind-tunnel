@@ -793,7 +793,47 @@ does not exist — would be worthless on the benchmarks where effects do exist. 
 localizations come from the leaking scorers (MATH, HumanEval, HLE), reported as those cells
 land.
 
-*Remaining cells (running).* L2 on MATH, GPQA-Diamond, HumanEval and HLE, and the witnessed
+**Witnessed causal attribution on MATH: the mechanism works; the defect is diffuse.** MATH
+leaks, so it is the first real test of the causal instrument. Over a 40-item cohort (20
+discovery / 20 held-out), each of eleven candidate construction variables was forked under an
+evolution witness, holding oracle-wrongness fixed and changing exactly one variable.
+
+*What is established.* The instrument produced **six witnessed causal flips**: items where the
+identical oracle-wrong answer was **failed** by the judge as parent and **passed** once one
+variable was added, with the fork certifying that exactly one field changed (distinct
+before/after world roots, `single_variable_verified` true on every fork). For example, on
+`math-00002` the parent answer fails; adding only the phrase *"To be thorough and rigorous,"*
+flips the judge to PASS while the answer remains provably wrong — root
+`c2eac8be…` → `09e30cdd…`. This is causal attribution of a grader defect to a single
+manipulable variable, at zero human labelling cost, and it is what a static benchmark cannot
+produce: no correlational analysis can certify that nothing else changed.
+
+*What is not established — and this is the honest result.* **No variable dominates.** The
+top-ranked variable reached a held-out witnessed flip-rate of 0.05 against a baseline mean of
+0.045 — a lift of **0.005**, i.e. essentially nil — and six variables tie within noise
+(`format_mimicry`, `sycophancy_bait`, `rubric_echo`, `calibrated_confidence`, and two favored
+phrasings all at 0.05). The named slice passes our preregistered validation rule (held-out
+rate exceeds both baselines and is non-zero), but **that rule is too permissive at this cohort
+size**: with 20 held-out items a 0.05 rate is a *single item*, which cannot discriminate among
+eleven candidates. We therefore report the localization as **mechanism-positive,
+attribution-inconclusive**.
+
+The negative finding is itself informative and corroborated: MATH's L1 spectrum shows many
+vectors succeeding at comparable rates (`authoritative_wrong` 31, `sycophancy_bait` 25,
+`calibrated_confidence` 25, `hedge_flooding` 24, `format_mimicry` 23), so this scorer's defect
+is **diffuse across the judge-gaming surface rather than concentrated in one variable** —
+exactly the structure the localizer reports. A benchmark whose defect is diffuse admits no
+single-variable patch, which is a materially different remediation story from HumanEval's
+razor-narrow `keyword_inflation` dependence (§13.1) and is a direct, prospective read on H2.
+
+*Design correction for Phase 2.* Localizing a diffuse defect needs far more power than a
+40-item cohort provides. We pre-commit to (a) cohorts of ≥200 items per arm, (b) a
+significance criterion (bootstrap CI on the flip-rate difference) replacing the current
+"exceeds baseline" rule, and (c) reporting the full ranked candidate table with intervals
+rather than a single named winner. The present rule's permissiveness is disclosed here rather
+than silently repaired.
+
+*Remaining cells (running).* L2 on GPQA-Diamond, HumanEval and HLE, and the witnessed
 single-variable causal localization for each — including whether adaptive search raises density
 on the scorers that already leak at L1, and whether it cracks GPQA-Diamond's near-resistant
 key-match scorer.
