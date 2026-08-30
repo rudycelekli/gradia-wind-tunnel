@@ -608,12 +608,13 @@ figure is illustrative (offline) or empirical (a real run).
 
 *Scope.* The preregistered **200-items/cell** run at rung **L1** (metamorphic), one judge
 (`claude-opus-5`, Guard-routed quick mode) and one adversary — the first real number under
-the frozen prereg. Four of the five machine-checkable benchmarks completed; every bundle is
+the frozen prereg. All five machine-checkable benchmarks completed; every bundle is
 recomputed from its `frames.ndjson` by `capture.verify_bundle` (all `ok`), every exploit
 oracle-witnessed (oracle-WRONG ∧ judge-PASS) with zero malformed cells. GSM8K's full run
-dropped on a transient network timeout (the grader has since been hardened to absorb
-multi-minute outages) and is re-running. This is Phase-1 rung L1; the L2 adaptive-search
-wave, witnessed causal localization, the judge×adversary matrix, and convergence follow.
+dropped on a transient network timeout (the grader was hardened to absorb
+multi-minute outages and the benchmark re-ran to completion). This is Phase-1 rung L1; the L2
+adaptive-search wave, witnessed causal localization, the judge×adversary matrix, and
+convergence follow.
 
 **Table R1 — L1 exploit density at 200/cell (per 1,000 attempts), 2026-08-29.**
 
@@ -623,20 +624,25 @@ wave, witnessed causal localization, the judge×adversary matrix, and convergenc
 | GPQA-Diamond | frontier | 198 | 13 | 6.6 | 7/13 |
 | MATH | control | 200 | 215 | 107.5 | 155/215 (72%) |
 | HumanEval | control | 164 | 119 | 72.6 | 0/119 |
-| GSM8K | control | — | *re-running* | — | — |
-| **Total (4 completed)** | | | **476** | — | **247/476 (52%)** |
+| GSM8K | control | 200 | 0 | 0 | — |
+| **Total (all five)** | | **962** | **476** | — | **247/476 (52%)** |
 
-(GPQA-Diamond and HumanEval contain 198 and 164 items — the *entire* benchmark; MATH and HLE
-use 200-item subsets. Completed-run cost: $79.)
+(GPQA-Diamond and HumanEval contain 198 and 164 items — the *entire* benchmark; MATH, HLE and
+GSM8K use 200-item subsets. 9,620 attack attempts; total run cost: $87.)
 
 **The frontier tier leaks.** HLE — the frontier knowledge exam — is gameable at **64.5/1k
 (129 oracle-witnessed exploits)**, and **two-thirds of them (85/129) come from the
 judge-gaming family** of §4.5: a provably-wrong answer wrapped in a fabricated citation or
 calibrated-sounding confidence slips past the judge. GPQA-Diamond's key-match scorer is far
 more robust — **6.6/1k (13 exploits)** — but *not immune*, and the 200-item pool is what
-surfaced it (the 50-item pilot showed exactly zero). The pattern holds: a scorer with a
-target it can independently re-derive (a letter key) admits few oracle-wrong answers; an
-open-ended one (HLE free-form) leaks.
+surfaced it (the 50-item pilot showed exactly zero). At the other extreme, **GSM8K resists
+completely: 0 exploits in 2,000 attempts**, a clean negative result at preregistered scale.
+The pattern is consistent and mechanistic: a scorer whose target it can cheaply re-derive
+itself (grade-school arithmetic, a letter key) admits few or no oracle-wrong answers; a
+scorer facing competition math, code, or open-ended frontier questions cannot re-derive the
+truth and leaks. **Scorer gameability tracks the judge's ability to independently verify,
+not the benchmark's difficulty for models** — GSM8K and HLE sit at opposite ends of both
+scales.
 
 **Exploit DNA is benchmark-specific — sharply so (Figure 5).** Each scorer has a distinct
 fingerprint, not a uniform weakness:
@@ -659,14 +665,15 @@ previously unmeasured scorer blind spots.
 
 ### 13.2 What this run does and does not establish
 
-*Establishes.* The instrument runs end-to-end at preregistered scale (200/cell) on real
-benchmarks with a live judge; L1 metamorphic attacks produce oracle-witnessed exploits on
-all four completed benchmarks — **the frontier knowledge exam (HLE) among them, at
-64.5/1k** — with a sharply benchmark-specific exploit fingerprint; the judge-gaming family
-carries the majority of frontier exploits; every number is recomputable and tamper-evident.
+*Establishes.* The instrument runs end-to-end at preregistered scale (200/cell) across all
+five machine-checkable benchmarks with a live judge; L1 metamorphic attacks produce
+oracle-witnessed exploits on four of five — **the frontier knowledge exam (HLE) among them,
+at 64.5/1k** — with a sharply benchmark-specific exploit fingerprint; GSM8K resists
+completely (0/2,000), so the method reports robustness as readily as breakage; the
+judge-gaming family carries the majority of exploits on every open-ended scorer; every number
+is recomputable and tamper-evident.
 
-*Does not yet establish (in progress).* GSM8K at 200/cell (re-running after a network drop);
-whether **L2 adaptive search** raises density or cracks the near-resistant scorers (running
+*Does not yet establish (in progress).* Whether **L2 adaptive search** raises density or cracks the near-resistant scorers (running
 now); **witnessed single-variable universe forks localizing the causal slice** behind a
 named exploit family (the program's distinguishing claim — the instrument is built, §4.6/§6,
 and runs in the L2 wave); the adversary×judge transfer matrix and whether structural judges
