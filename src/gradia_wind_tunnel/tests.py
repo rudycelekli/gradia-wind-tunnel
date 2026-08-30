@@ -492,6 +492,14 @@ def main() -> int:
           not _fin("t", _PP(tempfile.mkdtemp()), ["z"], [], _obs_bad, 3, 0, True, True, None)["validity"]["valid"])
 
 
+    # --- real-judge convergence (rubric-edit mechanism) ---
+    from .realjudge import run_convergence_realjudge as _rjc
+    _rj = _rjc("gsm8k", real=False, K=5, seed=SEED)
+    check("real-judge rubric-edit loop relocates (relocation_plateau)",
+          _rj["rubric_edit_loop"]["classification"] == "relocation_plateau")
+    check("real-judge self-commitment rubric cures (density -> 0)",
+          _rj["structural_arm"]["self_commitment_density_per_1000"] == 0.0)
+
     print(f"\n{PASSED} passed, {FAILED} failed")
     return 1 if FAILED else 0
 

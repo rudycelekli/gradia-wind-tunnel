@@ -119,6 +119,8 @@ def main(argv: list[str] | None = None) -> int:
         return _research(rest)
     if cmd == "index":
         return _index(rest)
+    if cmd == "realjudge":
+        return _realjudge(rest)
     print(__doc__)
     return 2
 
@@ -624,6 +626,37 @@ def _index(argv: list[str]) -> int:
         if "error" in c: continue
         lo, hi = c["ci95_bootstrap"]
         print(f"  {c['label']:22s} {c['gameability_index_per_1000']:8.1f} /1k   95% CI [{lo}, {hi}]   n={c['n_items']}")
+    return 0
+
+
+def _realjudge(argv: list[str]) -> int:
+    """Real-LLM-judge convergence via the rubric-edit mechanism. Offline (rubric-aware sim)
+    by default; --real routes to the Guard-hosted frontier judge (needs Guard credentials)."""
+    import json
+    from .realjudge import run_convergence_realjudge
+    bid = None; real = False; model = "claude-opus-5"; gateway = None
+    K = 4; limit = 100; seed = 20260830; out = None
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a in ("--benchmark", "-b"): bid = argv[i + 1]; i += 2
+        elif a == "--real": real = True; i += 1
+        elif a == "--model": model = argv[i + 1]; i += 2
+        elif a == "--gateway": gateway = argv[i + 1]; i += 2
+        elif a == "--K": K = int(argv[i + 1]); i += 2
+        elif a == "--limit": limit = int(argv[i + 1]); i += 2
+        elif a == "--seed": seed = int(argv[i + 1]); i += 2
+        elif a == "--out": out = argv[i + 1]; i += 2
+        else: raise SystemExit(f"realjudge: unknown option {a!r}")
+    if not bid: raise SystemExit("realjudge: --benchmark required")
+    b = run_convergence_realjudge(bid, real=real, model=model, gateway=gateway, K=K,
+                                  limit=limit, seed=seed, out_dir=out)
+    print(json.dumps({"provider": b["provider"], "judge": b.get("judge"),
+                      "benchmark": b.get("benchmark_id"),
+                      "heldout_curve_per_1000": b["rubric_edit_loop"]["heldout_curve_per_1000"],
+                      "classification": b["rubric_edit_loop"]["classification"],
+                      "self_commit_density_per_1000": b["structural_arm"]["self_commitment_density_per_1000"]},
+                     indent=2))
     return 0
 
 if __name__ == "__main__":
