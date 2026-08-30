@@ -589,6 +589,7 @@ def _swebench_live(argv: list[str]) -> int:
     stratified = False
     seed = 20260830
     prune_images = True
+    prune_all = False
     min_free_gb = 20.0
     skip_globs: list = []
     i = 0
@@ -602,6 +603,7 @@ def _swebench_live(argv: list[str]) -> int:
         elif a == "--stratified": stratified = True; i += 1
         elif a == "--seed": seed = int(argv[i + 1]); i += 2
         elif a == "--keep-images": prune_images = False; i += 1
+        elif a == "--prune-all": prune_all = True; i += 1
         elif a == "--min-free-gb": min_free_gb = float(argv[i + 1]); i += 2
         elif a == "--skip-done": skip_globs.append(argv[i + 1]); i += 2
         else: raise SystemExit(f"swebench-live: unknown option {a!r}")
@@ -617,7 +619,7 @@ def _swebench_live(argv: list[str]) -> int:
         print(f"# resume: skipping {len(skip_ids)} instance(s) already measured in {len(_dirs)} prior dir(s)")
     res = run_live_attacks(run_id, limit=limit, out_dir=out, run_oracle=run_oracle,
                            timeout=timeout, stratified=stratified, seed=seed,
-                           prune_images=prune_images, min_free_gb=min_free_gb,
+                           prune_images=prune_images, prune_all=prune_all, min_free_gb=min_free_gb,
                            preregistration_sha256=os.environ.get("GRADIA_WT_PREREG_SHA256"),
                            skip_ids=skip_ids)
     m = res["manifest"]

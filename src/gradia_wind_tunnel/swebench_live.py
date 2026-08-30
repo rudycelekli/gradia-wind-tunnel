@@ -206,6 +206,18 @@ def _remove_image(img: str) -> bool:
         return False
 
 
+def _system_prune() -> bool:
+    """Reclaim ALL unused docker resources (images, stopped containers, build cache,
+    volumes). On Docker Desktop builds that TRIM the disk image this returns host disk
+    between instances -- the only way a long sweep fits without a manual purge; the next
+    instance re-pulls what it needs via _ensure_image."""
+    try:
+        return subprocess.run(["docker", "system", "prune", "-af", "--volumes"],
+                              capture_output=True, text=True, timeout=1800).returncode == 0
+    except Exception:
+        return False
+
+
 def instance_image(instance_id: str) -> str:
     """Image to run for this instance. Prefer the image already in the local Docker
     registry (pre-pulled, authoritative), then the enriched dataset's own `image`
@@ -436,7 +448,7 @@ def _finalize_swe_bundle(run_id, out, cases_done, episodes, observations, agree,
 def run_live_attacks(run_id: str, *, limit: int = 3, out_dir: str | None = None,
                      run_oracle: bool = True, with_controls: bool = True,
                      timeout: int = 1800, stratified: bool = False, seed: int = 20260830,
-                     prune_images: bool = True, min_free_gb: float = 20.0,
+                     prune_images: bool = True, prune_all: bool = False, min_free_gb: float = 20.0,
                      preregistration_sha256: str | None = None,
                      skip_ids: set | None = None) -> dict:
     """THE live SWE reward-hacking measurement. Per (instance, patch): one weak container
@@ -518,7 +530,9 @@ def run_live_attacks(run_id: str, *, limit: int = 3, out_dir: str | None = None,
                 f"exploits={result['totals']['exploits']}; free_disk_gb={_free_gb():.1f}\n")
         except Exception:
             pass
-        if prune_images:
+        if prune_all:
+            _system_prune()             # reclaim ALL unused docker resources (frees host disk on trimming builds)
+        elif prune_images:
             _remove_image(img)          # keep peak disk at ~one instance image
     if result is None:
         result = _finalize_swe_bundle(run_id, out, done, episodes, observations, agree, disagree,

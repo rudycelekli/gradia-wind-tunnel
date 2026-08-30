@@ -1,82 +1,86 @@
 #!/usr/bin/env bash
-# Continue the SWE-bench live sweep: ADD fresh instances onto what you already have,
-# then merge everything into ONE re-validated bundle (results/swe-merged) that
-# run_research.sh reads. Safe to run repeatedly -- each run resumes, never redoes.
+# Grow the SWE-bench live sweep toward a TARGET total (default 60), resuming across runs
+# and merging everything into ONE re-validated bundle (results/swe-merged). It never
+# redoes an instance. Run it; when it stops short, reclaim disk and run it again.
 #
-#   bash run_swe_more.sh                 # add up to 12 fresh instances, then merge
-#   LIMIT=25 bash run_swe_more.sh        # aim to add 25 (disk permitting)
-#   caffeinate -i bash run_swe_more.sh   # keep the Mac awake for a long batch
+#   caffeinate -i bash run_swe_more.sh              # aim for 60 clean total
+#   TARGET=30 caffeinate -i bash run_swe_more.sh    # aim for a smaller total
+#   LIMIT=8   caffeinate -i bash run_swe_more.sh    # cap THIS batch at 8 new instances
 #
-# THE ONE HARD LIMIT is disk: macOS never shrinks Docker.raw, so free host disk only
-# falls as task images accumulate. If a batch stops on the disk floor, reclaim space
-# (see the DISK note this script prints) and just run it again -- it picks up where it
-# stopped. run_swe.sh must have proven the oracle at least once before you use this.
+# macOS never shrinks Docker.raw on its own, so this prunes Docker aggressively between
+# instances (--prune-all) and prints free disk before/after. If your Docker Desktop TRIMs
+# its disk image you may reach the target in one long run; if not, a batch stops on the
+# disk floor -- reclaim space (instructions printed) and re-run. run_swe.sh must have
+# proven the oracle at least once first.
 set -uo pipefail
 cd "$(cd "$(dirname "$0")" && pwd)"
 export PYTHONPATH="src${PYTHONPATH:+:$PYTHONPATH}"
 
-LIMIT="${LIMIT:-12}"
-MIN_FREE="${MIN_FREE_GB:-12}"
-BASE="${SWE_BASE:-results/swe-live-20260830-132756/live}"   # the validated stratified baseline
+TARGET="${TARGET:-60}"
+MIN_FREE="${MIN_FREE_GB:-10}"
+BASE="${SWE_BASE:-results/swe-live-20260830-132756/live}"   # validated stratified baseline
 STAMP="$(date +%Y%m%d-%H%M%S)"; OUT="results/swe-cont-$STAMP"; mkdir -p "$OUT"
 say(){ echo "$@" | tee -a "$OUT/more.log"; }
+freeg(){ df -g / 2>/dev/null | awk 'NR==2{print $4}'; }
 
 [ -f .env ] && { set -a; . <(grep -E '^[A-Za-z_][A-Za-z0-9_]*=' .env | sed 's/[[:space:]]*$//'); set +a; }
-
 ARCH="$(uname -m)"
 if [ -z "${DOCKER_DEFAULT_PLATFORM:-}" ] && { [ "$ARCH" = "arm64" ] || [ "$ARCH" = "aarch64" ]; }; then
-  export DOCKER_DEFAULT_PLATFORM=linux/amd64   # prebuilt SWE images are x86_64 (emulated on Apple Silicon)
+  export DOCKER_DEFAULT_PLATFORM=linux/amd64
 fi
 
-say "################ SWE CONTINUE @ $STAMP (add up to $LIMIT; disk floor ${MIN_FREE}GB) ################"
+CLEAN=$(python3 -c "import json;print(json.load(open('results/swe-merged/manifest.json'))['n_instances'])" 2>/dev/null || echo 0)
+REMAIN=$(( TARGET - CLEAN )); [ "$REMAIN" -lt 0 ] && REMAIN=0
+BATCH="${LIMIT:-$REMAIN}"
 
-DONE=$(python3 -c "
-from glob import glob
-from gradia_wind_tunnel.swebench_live import collect_done_ids
-d=['$BASE']+sorted(glob('results/swe-cont-*/live'))+['results/swe-merged']
-print(len(collect_done_ids([x for x in d if x])))" 2>/dev/null || echo '?')
-say "  instances already in hand: $DONE  (this batch skips them and adds NEW ones)"
-
-# ---- readiness (Docker + swebench). run_swe.sh installs + proves the oracle first. ----
-if ! python3 -c "import swebench" 2>/dev/null; then
-  say "  swebench not importable -- run 'bash run_swe.sh' once first (installs it + proves the oracle). Aborting."; exit 1
+say "################ SWE -> TARGET $TARGET  (have $CLEAN clean, need $REMAIN more) @ $STAMP ################"
+if [ "$REMAIN" -le 0 ]; then
+  say "  TARGET ALREADY REACHED ($CLEAN >= $TARGET). Fold into the paper:  bash run_research.sh"; exit 0
 fi
+
+# ---- readiness ----
+if ! python3 -c "import swebench" 2>/dev/null; then say "  swebench missing -- run 'bash run_swe.sh' once first. Aborting."; exit 1; fi
 if ! python3 -c "from gradia_wind_tunnel.swebench_harness import harness_ready as h;import sys;sys.exit(0 if h()['ready'] else 1)"; then
-  say "  HARNESS NOT READY -- the Docker daemon isn't answering. Start Docker Desktop, verify with 'docker run --rm hello-world', then re-run. Aborting."; exit 1
-fi
+  say "  HARNESS NOT READY -- start Docker Desktop, verify 'docker run --rm hello-world', re-run. Aborting."; exit 1; fi
 say "  harness READY"
 
 # ---- disk preflight ----
-FREE_GB=$(df -g / 2>/dev/null | awk 'NR==2{print $4}'); [ -z "$FREE_GB" ] && FREE_GB=$(df -k / 2>/dev/null | awk 'NR==2{printf "%d",$4/1048576}')
-say "  free disk: ${FREE_GB}GB (floor ${MIN_FREE}GB)"
-if [ "${FREE_GB:-0}" -lt "$MIN_FREE" ] 2>/dev/null; then
-  say ""
-  say "  LOW DISK. IMPORTANT: on macOS, 'docker system prune' frees space INSIDE Docker.raw but"
-  say "  does NOT return GBs to the host -- Docker.raw never shrinks on its own. To actually"
-  say "  reclaim host disk you must SHRINK the Docker disk image:"
-  say "    Docker Desktop -> Settings -> Resources -> Advanced -> lower 'Disk image size'  (fastest)"
-  say "    or  Docker Desktop -> Troubleshoot -> 'Clean / Purge data'  (nukes all images)"
-  say "  After either, run 'bash run_swe.sh' ONCE (re-pulls + re-proves the oracle), then this script again."
-  say "  (Or just free space elsewhere until free disk > ${MIN_FREE}GB.)"
+FREE0=$(freeg); [ -z "$FREE0" ] && FREE0=999
+say "  free disk before: ${FREE0}GB (floor ${MIN_FREE}GB)"
+if [ "${FREE0:-0}" -lt "$MIN_FREE" ] 2>/dev/null; then
+  say ""; say "  LOW DISK before we start. Reclaim first:"
+  say "    fastest: Docker Desktop -> Settings -> Resources -> Advanced -> lower 'Disk image size' -> Apply & Restart"
+  say "    or:      Docker Desktop -> Troubleshoot -> 'Clean / Purge data'  (nukes all images)"
+  say "    then 'bash run_swe.sh' once (re-proves the oracle), then this script again."
   exit 1
 fi
 
-# ---- resume: add fresh instances, skipping everything already measured ----
-say ""; say "===== resume: add up to $LIMIT fresh instances -> $OUT/live ====="
-python3 -m gradia_wind_tunnel.cli swebench-live --stratified --limit "$LIMIT" --min-free-gb "$MIN_FREE" \
+# ---- resume: add up to BATCH fresh instances, pruning Docker between each ----
+say ""; say "===== adding up to $BATCH fresh instance(s) toward $TARGET (prune-all between each) -> $OUT/live ====="
+python3 -m gradia_wind_tunnel.cli swebench-live --stratified --limit "$BATCH" --min-free-gb "$MIN_FREE" --prune-all \
   --skip-done "$BASE" --skip-done "results/swe-cont-*/live" --skip-done "results/swe-merged" \
   --out "$OUT/live" 2>&1 | tee -a "$OUT/more.log" | tail -60
+[ -f "$OUT/live/progress.txt" ] && { say ""; say "  last checkpoint: $(tail -1 "$OUT/live/progress.txt")"; }
 
-# ---- merge the validated baseline + every continuation -> ONE re-validated bundle ----
+# ---- merge baseline + all continuations -> ONE re-validated bundle ----
 say ""; say "===== merge baseline + all continuations -> results/swe-merged ====="
-python3 -m gradia_wind_tunnel.cli swebench-merge \
-  "$BASE" "results/swe-cont-*/live" \
-  --out results/swe-merged 2>&1 | tee -a "$OUT/more.log" | tail -45
+python3 -m gradia_wind_tunnel.cli swebench-merge "$BASE" "results/swe-cont-*/live" --out results/swe-merged 2>&1 | tee -a "$OUT/more.log" | tail -30
 
-say ""
-if grep -q '"VALID": true' "$OUT/more.log" 2>/dev/null; then
-  say "################ DONE -- results/swe-merged is the combined, re-validated bundle ################"
-  say "  fold it into every paper number:   bash run_research.sh"
+# ---- recount + report ----
+CLEAN=$(python3 -c "import json;print(json.load(open('results/swe-merged/manifest.json'))['n_instances'])" 2>/dev/null || echo '?')
+FREE1=$(freeg); [ -z "$FREE1" ] && FREE1=999
+say ""; say "  merged bundle now: $CLEAN clean instance(s)  |  free disk ${FREE0}GB -> ${FREE1}GB (after run, before prune)"
+if [ "${CLEAN:-0}" -ge "$TARGET" ] 2>/dev/null; then
+  say "################ TARGET $TARGET REACHED ($CLEAN clean). Now:  bash run_research.sh ################"
+  exit 0
+fi
+say "  reclaiming docker space (system prune)..."
+docker system prune -af --volumes >/dev/null 2>&1 && say "  pruned -> free disk now: $(freeg)GB"
+if [ "$(freeg 2>/dev/null || echo 999)" -lt "$MIN_FREE" ] 2>/dev/null; then
+  say ""; say "  Host disk did NOT recover from prune -> your Docker doesn't auto-trim Docker.raw."
+  say "  Shrink the Docker disk image ONCE, then keep going:"
+  say "    Docker Desktop -> Settings -> Resources -> Advanced -> lower 'Disk image size' -> Apply & Restart"
+  say "    then 'bash run_swe.sh' once, then 'bash run_swe_more.sh' again."
 else
-  say "################ batch finished -- check $OUT/more.log for the merged VALID verdict ################"
+  say "################ at $CLEAN / $TARGET -- disk healthy, just run 'bash run_swe_more.sh' again ################"
 fi
