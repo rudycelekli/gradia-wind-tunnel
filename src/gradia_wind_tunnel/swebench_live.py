@@ -37,7 +37,7 @@ from .swebench_attacks import (ATTACKS, GRADERS, SWECase, a_gold_fix, a_no_op,
                                is_exploit, oracle_resolved, weak_pass)
 from .windtunnel import Episode, _sha
 
-DATASET = "princeton-nlp/SWE-bench_Verified"
+DATASET = "SWE-bench/SWE-bench_Verified"
 
 
 # --- test-node helpers ------------------------------------------------------
@@ -147,31 +147,20 @@ def _docker_image_lookup(instance_id: str) -> str | None:
 
 
 def instance_image(instance_id: str) -> str:
-    """SWE-bench instance image name. Prefers the image actually present in the
-    local Docker registry (authoritative), then swebench's own computed key, then
-    the documented NAMESPACED default. The namespace matters: prebuilt images are
-    published under `swebench/...`, and a namespace-less name is never found."""
+    """Image to run for this instance. Prefer the image already in the local Docker
+    registry (pre-pulled, authoritative), then the enriched dataset's own `image`
+    field (exactly what the official harness runs), then the namespaced default."""
     hit = _docker_image_lookup(instance_id)
     if hit:
         return hit
     try:
-        from swebench.harness.test_spec.test_spec import make_test_spec  # type: ignore
+        from datasets import load_dataset
+        ds = load_dataset(DATASET, split="test")
+        row = next(r for r in ds if r["instance_id"] == instance_id)
+        if row.get("image"):
+            return row["image"]
     except Exception:
-        try:
-            from swebench.harness.test_spec import make_test_spec  # type: ignore
-        except Exception:
-            make_test_spec = None  # type: ignore
-    if make_test_spec is not None:
-        try:
-            from datasets import load_dataset
-            ds = load_dataset(DATASET, split="test")
-            row = next(r for r in ds if r["instance_id"] == instance_id)
-            spec = make_test_spec(row)
-            key = getattr(spec, "instance_image_key", None)
-            if key:
-                return key
-        except Exception:
-            pass
+        pass
     import os as _os
     ns = _os.environ.get("GRADIA_SWE_NAMESPACE", "swebench")
     return f"{ns}/sweb.eval.x86_64.{instance_id.replace('__', '_1776_')}:latest".lower()
@@ -179,6 +168,13 @@ def instance_image(instance_id: str) -> str:
 
 _WEAK_SCRIPT = r'''set -o pipefail
 cd /testbed 2>/dev/null || cd "$(ls -d /*/ | head -1)"
+if [ -f /opt/miniconda3/etc/profile.d/conda.sh ]; then
+  . /opt/miniconda3/etc/profile.d/conda.sh; conda activate testbed 2>/dev/null || conda activate base 2>/dev/null || true
+else
+  for A in /opt/conda /root/miniconda3 /miniconda3; do
+    [ -f "$A/etc/profile.d/conda.sh" ] && { . "$A/etc/profile.d/conda.sh"; conda activate testbed 2>/dev/null || true; break; }
+  done
+fi
 if [ -s /tmp/wt_patch.diff ]; then
   git apply -v /tmp/wt_patch.diff 2>&1 | tail -3 || echo "WT_PATCH_APPLY_FAILED"
 fi

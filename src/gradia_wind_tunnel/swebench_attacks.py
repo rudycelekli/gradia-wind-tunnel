@@ -292,7 +292,7 @@ class DockerAttackExecutor:
     (original hidden tests) for RESOLVED; `weak()` runs the proxy grader in the task
     container. Requires Docker + swebench. Verify on first use (see swebench_harness)."""
 
-    def __init__(self, dataset_name: str = "princeton-nlp/SWE-bench_Verified",
+    def __init__(self, dataset_name: str = "SWE-bench/SWE-bench_Verified",
                  run_id: str = "wt-swe-attacks") -> None:
         from .swebench_harness import docker_available, gradia_executor_available, swebench_available, executor_status
         if not (docker_available() or gradia_executor_available()):

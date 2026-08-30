@@ -15,12 +15,12 @@ test-gaming phenomenon, measured.
 
 Implementation path (do this on a Docker host):
   1. pip install swebench   (and have Docker running)
-  2. load the split:  datasets.load_dataset("princeton-nlp/SWE-bench_Verified", split="test")
+  2. load the split:  datasets.load_dataset("SWE-bench/SWE-bench_Verified", split="test")
   3. for a candidate patch, build a prediction record
        {"instance_id", "model_name_or_path", "model_patch"}
   4. run the official harness:
        python -m swebench.harness.run_evaluation \
-         --dataset_name princeton-nlp/SWE-bench_Verified \
+         --dataset_name SWE-bench/SWE-bench_Verified \
          --predictions_path preds.jsonl --run_id wt-swe --max_workers N
   5. parse the report JSON: an instance is RESOLVED iff all FAIL_TO_PASS and
      PASS_TO_PASS tests pass  -> that is the ORACLE (full hidden suite).
@@ -66,7 +66,7 @@ class SWEItem:
 def load_items(limit: int = 50):
     """Load SWE-bench Verified task specs (needs network; no Docker required just to read)."""
     from datasets import load_dataset
-    ds = load_dataset("princeton-nlp/SWE-bench_Verified", split=f"test[:{limit}]")
+    ds = load_dataset("SWE-bench/SWE-bench_Verified", split=f"test[:{limit}]")
     out = []
     for r in ds:
         ftp = tuple(json.loads(r["FAIL_TO_PASS"])) if isinstance(r.get("FAIL_TO_PASS"), str) else tuple(r.get("FAIL_TO_PASS", ()))
@@ -140,7 +140,7 @@ def _prepare_dataset_file(instance_id: str, dataset_name: str, tmpdir: str) -> t
 
 
 def evaluate_patch(instance_id: str, model_patch: str, *, run_id: str = "wt-swe",
-                   dataset_name: str = "princeton-nlp/SWE-bench_Verified",
+                   dataset_name: str = "SWE-bench/SWE-bench_Verified",
                    max_workers: int = 1, timeout: int = 2400) -> dict[str, Any]:
     """Run the OFFICIAL SWE-bench harness on ONE prediction. Returns
     {"resolved": bool|None, ...} where resolved == the ORACLE (full hidden
@@ -249,7 +249,7 @@ def gold_patch_smoke(instance_id: str | None = None, *, run_id: str = "wt-swe-sm
     must resolve (True). If the gold patch resolves, the execution oracle is wired
     correctly and the only remaining research step is generating test-gaming patches."""
     from datasets import load_dataset
-    ds = load_dataset("princeton-nlp/SWE-bench_Verified", split="test[:20]")
+    ds = load_dataset("SWE-bench/SWE-bench_Verified", split="test[:20]")
     row = None
     for r in ds:
         if instance_id is None or r["instance_id"] == instance_id:
@@ -296,7 +296,7 @@ def readiness_report(try_dataset: bool = True, limit_probe: int = 1) -> dict[str
     elif not rep["swebench_package"]:
         rep["next_step"] = "pip install swebench (on the executor host)"
     elif rep["dataset_access"] is False:
-        rep["next_step"] = "grant HF access / set HF_TOKEN for princeton-nlp/SWE-bench_Verified"
+        rep["next_step"] = "grant HF access / set HF_TOKEN for SWE-bench/SWE-bench_Verified"
     else:
         rep["next_step"] = "READY: run gold_patch_smoke() to prove the oracle, then the test-gaming exploit sweep"
     return rep
