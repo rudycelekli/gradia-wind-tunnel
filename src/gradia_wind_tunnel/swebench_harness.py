@@ -37,7 +37,39 @@ from typing import Any
 
 
 def docker_available() -> bool:
-    return shutil.which("docker") is not None
+    """True only if the Docker DAEMON actually answers.
+
+    Checking that the `docker` binary exists is not enough: Docker Desktop can be
+    installed and stopped, or installed and unable to start (503), and a readiness
+    ladder that reports ready in that state marches a multi-hour run into failure.
+    We ping the daemon and treat any error, timeout, or non-zero exit as unavailable."""
+    if shutil.which("docker") is None:
+        return False
+    import subprocess
+    try:
+        return subprocess.run(["docker", "version", "--format", "{{.Server.Version}}"],
+                              capture_output=True, text=True, timeout=30).returncode == 0
+    except Exception:
+        return False
+
+
+def docker_status() -> dict:
+    """Human-readable daemon state for the readiness ladder."""
+    if shutil.which("docker") is None:
+        return {"cli": False, "daemon": False, "detail": "docker CLI not installed"}
+    import subprocess
+    try:
+        p = subprocess.run(["docker", "version", "--format", "{{.Server.Version}}"],
+                           capture_output=True, text=True, timeout=30)
+        if p.returncode == 0:
+            return {"cli": True, "daemon": True, "server_version": p.stdout.strip()}
+        err = (p.stderr or p.stdout or "").strip().splitlines()
+        return {"cli": True, "daemon": False,
+                "detail": (err[-1] if err else "docker daemon not responding"),
+                "fix": ("start Docker Desktop; if it reports 'unable to start', use "
+                        "Troubleshoot -> Reset to factory defaults (also reclaims its disk image)")}
+    except Exception as e:
+        return {"cli": True, "daemon": False, "detail": f"{type(e).__name__}: {e}"[:160]}
 
 
 def swebench_available() -> bool:
@@ -317,6 +349,7 @@ def gradia_executor_available() -> bool:
 
 def executor_status() -> dict:
     return {"local_docker": docker_available(),
+            "docker": docker_status(),
             "gradia_substrate": gradia_executor_available(),
             "any_executor": docker_available() or gradia_executor_available(),
             "note": "SWE-bench execution can run on local Docker or on Gradia's "

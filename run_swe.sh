@@ -45,7 +45,19 @@ say "  swebench ready"
 say ""; say "===== [2/5] readiness ladder ====="
 python3 -m gradia_wind_tunnel.cli swebench-check 2>&1 | tee -a "$OUT/swe.log" | tail -20
 if ! python3 -c "from gradia_wind_tunnel.swebench_harness import harness_ready as h;import sys;sys.exit(0 if h()['ready'] else 1)"; then
-  say "  harness not ready (is Docker running?) -- SKIPPING live run. Offline numbers stand."
+  say "  HARNESS NOT READY -- skipping the live run (offline numbers above still stand)."
+  python3 -c "
+import json
+from gradia_wind_tunnel.swebench_harness import docker_status
+d = docker_status()
+print('  docker:', json.dumps(d))
+if d.get('cli') and not d.get('daemon'):
+    print('  -> The Docker DAEMON is not answering. Fix it, then re-run:')
+    print('     1) Quit Docker Desktop completely (whale menu -> Quit)')
+    print('     2) Reopen it; if it says \'unable to start\', click the troubleshoot/bug icon')
+    print('        -> Reset to factory defaults (this also reclaims its virtual disk image)')
+    print('     3) Verify with:  docker run --rm hello-world')
+" 2>&1 | tee -a "$OUT/swe.log"
   say "################ DONE (offline only) -- bundle: $OUT ################"; exit 0
 fi
 say "  READY"
