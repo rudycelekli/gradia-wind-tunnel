@@ -103,7 +103,13 @@ def read_frames(path: Path) -> list[dict]:
 
 
 def verify_bundle(frames_path: Path, manifest: dict[str, Any]) -> dict[str, Any]:
-    """Recompute the chain head + aggregates from frames; compare to the manifest."""
+    """Recompute the chain head and every derived aggregate from the frames.
+
+    A valid manifest self-digest proves only that the manifest is internally
+    consistent.  It does not prove that its claimed counts, costs, or slices
+    came from the frames.  This verifier therefore rebuilds each published
+    aggregate independently and compares every field exactly.
+    """
     frames = read_frames(frames_path)
     # recompute the chain head
     head = digest({"schema": FRAMES_SCHEMA})
@@ -118,9 +124,26 @@ def verify_bundle(frames_path: Path, manifest: dict[str, Any]) -> dict[str, Any]
         recomputed_eps.append(Episode(**ep_fields))
     chain_ok = chain_ok and (head == manifest.get("frames_chain_head"))
 
-    # recompute totals and compare
-    recomputed_density = round(exploit_density(recomputed_eps), 1)
-    totals_ok = (recomputed_density == manifest.get("totals", {}).get("overall_density_per_1000"))
+    expected_aggregates = {
+        "totals": {
+            "attempts": len(recomputed_eps),
+            "exploits": sum(e.is_exploit for e in recomputed_eps),
+            "overall_density_per_1000": round(exploit_density(recomputed_eps), 1),
+            "total_cost_usd": round(sum(e.cost_usd for e in recomputed_eps), 4),
+        },
+        "density_by_rung": _by(recomputed_eps, lambda e: e.rung),
+        "density_by_transform": _by(recomputed_eps, lambda e: e.transform_id),
+        "density_by_benchmark": _by(
+            recomputed_eps,
+            lambda e: e.factors.get("benchmark_id", manifest.get("benchmark_id", "?")),
+        ),
+        "exploit_magnitude_hist": _magnitude_hist(recomputed_eps),
+    }
+    aggregate_checks = {
+        key: manifest.get(key) == expected
+        for key, expected in expected_aggregates.items()
+    }
+    aggregates_ok = all(aggregate_checks.values())
 
     # recompute the manifest self-digest
     self_ok = manifest.get("manifest_sha256") == digest(
@@ -128,8 +151,19 @@ def verify_bundle(frames_path: Path, manifest: dict[str, Any]) -> dict[str, Any]
 
     return {
         "frames": len(frames),
+        "schema_ok": (
+            manifest.get("schema") == MANIFEST_SCHEMA
+            and manifest.get("frames_schema") == FRAMES_SCHEMA
+        ),
         "chain_head_ok": chain_ok,
-        "aggregates_ok": totals_ok,
+        "aggregate_checks": aggregate_checks,
+        "aggregates_ok": aggregates_ok,
         "manifest_self_digest_ok": self_ok,
-        "ok": chain_ok and totals_ok and self_ok,
+        "ok": (
+            manifest.get("schema") == MANIFEST_SCHEMA
+            and manifest.get("frames_schema") == FRAMES_SCHEMA
+            and chain_ok
+            and aggregates_ok
+            and self_ok
+        ),
     }

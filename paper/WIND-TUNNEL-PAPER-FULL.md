@@ -608,7 +608,23 @@ which is the property we are asking evaluators to have.
 
 ---
 
-### 8.6 Public anchoring: existence-at-time and non-equivocation
+### 8.6 A third caught defect: a valid digest could still carry a false aggregate
+
+Alignment of hashes is necessary but not sufficient. The first v1 bundle verifier
+recomputed the frame chain, headline exploit density and manifest self-digest, but did
+not independently reconstruct every other published field. An altered attempt count
+followed by a fresh valid manifest digest could therefore appear internally consistent.
+No reported study result relied on such an alteration, but the acceptance path was real.
+The verifier now derives attempt, exploit and cost totals; all rung, transform and
+benchmark slices; and the magnitude histogram directly from `frames.ndjson`, then
+compares every field exactly. A regression fixture re-digests a forged attempt total and
+proves that `verify-bundle` refuses it. The distinction is load-bearing: a self-digest
+proves what bytes were presented; independent derivation proves the summary follows from
+the evidence.
+
+---
+
+### 8.7 Public anchoring: existence-at-time and non-equivocation
 
 A hash chain the authors control is tamper-evident, not self-authenticating. Internal
 consistency cannot show that the chain presented is the *original* one rather than a
@@ -1194,7 +1210,7 @@ The preregistration is git-pinned, spend-capped, and self-digested; the transfor
 and oracle specs are frozen and hashed into it; the hidden-vault empty head is published
 before any run. Every reported number is recomputable from `frames.ndjson` via
 `verify_bundle`, and the whole study replays offline from checked-in evidence. The
-instrument ships with 156 property/control tests. **Dataset provenance:** the canonical MATH source
+instrument ships with 165 property/control tests. **Dataset provenance:** the canonical MATH source
 (`hendrycks/competition_math`) was withdrawn under a January 2025 copyright takedown
 (Art of Problem Solving); runs load the same competition problems from a community mirror
 (`DigitalLearningGmbH/MATH-lighteval`, `test` split — the source confirmed for this study),
@@ -1227,7 +1243,7 @@ window), analysis_blind_gates, responsible_disclosure, preregistration_sha256.
 
 `prereg-freeze` / `prereg-verify`; `demo`; `run` (full study + self-verifying report);
 `suite --benchmark <id> [--real] [--live]` (per-benchmark evidence bundle); `verify` /
-`verify-report`; `figures`; `suite --rung L2` (adaptive search); `localize` (witnessed single-variable causal localization); `regime2` (oracle-less audit); `agentenv` (agentic reward-hacking archetype); `swebench-check` (SWE-bench readiness); `swebench-attacks` (SWE test-gaming catalog, offline); `swebench-live` (LIVE SWE run in real task containers, needs Docker). Artifacts: `preregistrations/*.json`, `results/<run>/
+`verify-report`; `verify-bundle BUNDLE_DIR` (offline derivation of every frames/manifest aggregate); `figures`; `suite --rung L2` (adaptive search); `localize` (witnessed single-variable causal localization); `regime2` (oracle-less audit); `agentenv` (agentic reward-hacking archetype); `swebench-check` (SWE-bench readiness); `swebench-attacks` (SWE test-gaming catalog, offline); `swebench-live` (LIVE SWE run in real task containers, needs Docker). Artifacts: `preregistrations/*.json`, `results/<run>/
 frames.ndjson` + `manifest.json`, `paper/figures/*.png`.
 
 ## Appendix D — hypotheses (directions pre-committed)
@@ -1242,7 +1258,7 @@ frames.ndjson` + `manifest.json`, `paper/figures/*.png`.
 
 ---
 
-*Methodology, architecture, and protocol are complete and instrumented (156 tests);
+*Methodology, architecture, and protocol are complete and instrumented (165 tests);
 §13–§14 report results under the frozen preregistration. Outstanding before submission:
 the corrected HumanEval re-run (§8.5), the real-LLM-judge convergence arm, the human
 naturalness study, and full reads of the related-work rows whose deltas are currently

@@ -4,7 +4,7 @@ export PYTHONPATH := src
 .PHONY: help test demo run prereg prereg-verify lint typecheck all
 
 help:
-	@echo "make test           - run the property test suite (45 checks)"
+	@echo "make test           - run the property/control suite (165 checks)"
 	@echo "make demo           - offline end-to-end walkthrough (no API key)"
 	@echo "make run            - run the FULL study; writes a self-verifying report"
 	@echo "make prereg         - freeze a Phase-0 preregistration into preregistrations/"

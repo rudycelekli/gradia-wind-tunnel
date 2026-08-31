@@ -50,7 +50,7 @@ Every item below is scored against these five.
 | Naturalness | ⚠️ | automated screen passes 100%; human ratings pending |
 | Real-LLM-judge convergence/transfer | ⚙️ | built + offline-verified; not yet run on the Guard judge |
 | Regime 2 (oracle-less) | ⚠️ | GSM8K done; HLE/MATH pending |
-| Property tests | ✅ | 147 green; guards on every module incl. both caught-defects |
+| Property tests | ✅ | 165 green; guards include the two historical defects and aggregate-forgery refusal |
 | Prior-work anchor | ✅ | Zhou 2026 (2607.05904) — corroborates on every axis; we extend it |
 
 Legend: ✅ done · 🔄 running · ⚙️ built, unrun · ⚠️ needs a run/strengthening.

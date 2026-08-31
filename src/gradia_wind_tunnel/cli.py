@@ -6,6 +6,7 @@
     gradia-wind-tunnel verify-report REPORT.json  # recompute the study's chain head
     gradia-wind-tunnel phase0 [--benchmark gsm8k] [--real] [--live --model M --gateway URL]
     gradia-wind-tunnel suite  [--benchmark gsm8k] [--rung L1|L2] [--real] [--live] [--limit N]
+    gradia-wind-tunnel verify-bundle BUNDLE_DIR  # offline frames + aggregate verification
     gradia-wind-tunnel localize --benchmark math [--real] [--live] [--limit N]  # witnessed causal slice
     gradia-wind-tunnel regime2  --benchmark hle  [--real] [--live] [--limit N]  # oracle-LESS audit (no key)
     gradia-wind-tunnel swebench-check                                          # SWE-bench readiness ladder
@@ -107,6 +108,8 @@ def main(argv: list[str] | None = None) -> int:
         return _phase0(rest)
     if cmd == "suite":
         return _suite(rest)
+    if cmd == "verify-bundle":
+        return _verify_bundle(rest)
     if cmd == "localize":
         return _localize(rest)
     if cmd == "regime2":
@@ -135,6 +138,31 @@ def main(argv: list[str] | None = None) -> int:
         return _program_readiness_verify(rest)
     print(__doc__)
     return 2
+
+
+def _verify_bundle(argv: list[str]) -> int:
+    """Verify one public Proof Pack evidence directory without a Gradia account."""
+    if len(argv) != 1:
+        raise SystemExit("usage: verify-bundle BUNDLE_DIR")
+    bundle_dir = Path(argv[0])
+    frames_path = bundle_dir / "frames.ndjson"
+    manifest_path = bundle_dir / "manifest.json"
+    try:
+        manifest = json.loads(manifest_path.read_text())
+        if not isinstance(manifest, dict):
+            raise ValueError("manifest.json must contain a JSON object")
+        from .capture import verify_bundle
+        report = verify_bundle(frames_path, manifest)
+    except (OSError, ValueError, TypeError, KeyError) as exc:
+        report = {
+            "ok": False,
+            "error_kind": type(exc).__name__,
+            "detail": str(exc),
+        }
+        print(json.dumps(report, indent=2, sort_keys=True))
+        return 2
+    print(json.dumps(report, indent=2, sort_keys=True))
+    return 0 if report["ok"] else 1
 
 
 def _suite(argv: list[str]) -> int:

@@ -31,16 +31,20 @@ backstop.
 ## Try it now (offline, no API key)
 
 ```bash
-make test    # 156 property/control tests, all green
+make test    # 165 property/control tests, all green
 make demo    # narrated walkthrough of the whole loop
 make run     # run the FULL study; writes a self-verifying report to results/
+gradia-wind-tunnel verify-bundle results/offline-math  # no account or API key
 ```
 
 `make run` executes the entire pipeline end-to-end — the four threat rungs
 (L0 natural incidence → L3 patch-aware), causal-slice localization with
 prospective validation, the K-cycle convergence loop, the hash-committed
 regression vault, and the analyst extras — and emits one canonical, self-digested
-report whose evidence chain head anyone recomputes with `verify-report`. On the
+report whose evidence chain head anyone recomputes with `verify-report`. Each
+frames/manifest Proof Pack can also be checked offline with `verify-bundle`,
+which independently recomputes its chain, attempt/exploit/cost totals, every
+reported slice, magnitude histogram and manifest digest. On the
 offline scorer it recovers the interaction *keyword-inflation ∧ steps≥3*, shows a
 patch relocating instead of generalizing (whack-a-mole, γ<1), the autoimmunity
 cost of repair, convergence once the family is exhausted, and a vault reveal that
@@ -110,7 +114,7 @@ Design and full method: [`docs/`](docs/) and the paper draft in [`paper/`](paper
 
 ## Status
 
-Public research beta. The **implemented methodology is green (156 tests)**:
+Public research beta. The **implemented methodology is green (165 tests)**:
 all four services plus the causal localizer, the three-modality patcher, the
 convergence loop, the hash-committed vault, and the analyst extras, driven by a
 one-command orchestrator that emits a self-verifying report. Real model-judge

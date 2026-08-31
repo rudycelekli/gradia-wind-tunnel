@@ -40,10 +40,10 @@ response object.
 | **Frames** | per-episode NDJSON, hash-chained, one line per scored attempt | `frames.ndjson` |
 | **Manifest** | self-digested aggregate: totals, densities, CIs, provenance | `manifest.json` + `manifest_sha256` |
 | **Pre-registration** | metric + attack/patch families frozen by SHA *before* the run | `GRADIA_WT_PREREG_SHA256` |
-| **Verifier** | recomputes chain head, aggregates, self-digest → green/red, offline | `verify_bundle` |
+| **Verifier** | recomputes chain head, every derived aggregate and self-digest → green/red, offline | `gradia-wind-tunnel verify-bundle BUNDLE_DIR` |
 | **Self-validation** | controls misbehave ⇒ the instrument **refuses to report** | SWE control audit, clean-instance reporting |
 | **Intervals** | item-clustered bootstrap CI on every headline number | `stats.bootstrap_density_ci` |
-| **Tests** | property guards, including one per defect the tool caught in itself | 160 green |
+| **Tests** | property guards, including one per defect the tool caught in itself | 165 green |
 | **Anchor** | public timestamp proof of the prereg SHA + evidence heads (OpenTimestamps; CT-style log planned) | `cli anchor` in `run_research.sh` — live today |
 
 **Why this is the brand, not the plumbing.** Anyone can publish a table. The distinctive thing —
@@ -61,13 +61,19 @@ any noun we could coin.
 competitors dismiss. Left unaddressed, "witnessed evidence" reads as "trust Gradia," which is the
 exact opposite of the claim.
 
-**Commitment.** Split the stack in two, and say so in every paper:
+**Implemented boundary.** Split the stack in two, and say so in every paper:
 
 - **Open (Apache-2.0, no Gradia dependency):** the bundle schema, the frames/manifest format, the
   chain-and-digest verifier, the index card schema, and a reference witness implementation. A
   stranger clones it, runs `verify`, and gets green/red on our bundles without an account.
 - **Commercial (Gradia):** running the apparatus at scale — hosted branch/restore, Guard-routed
   judging with receipts, the continuously-updated index, audit workflows, retention.
+
+The current repository now exposes the v1 frames/manifest verifier as the
+account-free `verify-bundle` CLI and includes the reference witness. The generic
+cross-program schema package, README badge, GitHub Action and hosted index are
+still adoption milestones; the current implementation must not be described as
+those later surfaces.
 
 This is the standard open-core split, and it is what makes the moat *defensible in review*:
 verification is free and universal; producing the evidence at scale is the product. Every paper
@@ -226,13 +232,18 @@ authority behind it.
 Each paper ships an endpoint. The endpoints share one response object: a **Proof Pack** (§1). That
 is the coherence that turns five research artifacts into one product line.
 
-| Endpoint | Question it answers | Ships with |
-|---|---|---|
-| `GET /audit/index?benchmark=…` | How gameable is this benchmark's scorer? | Wind Tunnel (live today) |
-| `POST /audit/repair` | We patched our evaluator — did exploitability actually drop? | Paper A |
-| `POST /audit/oversight` | How reliable is this judge/rater panel, and what fools it? | Paper B |
-| `POST /audit/witness` | Did the agent do what it reported? | Paper C |
-| `POST /verify` | Is this evidence bundle intact and self-consistent? | **Open, free, no account** |
+The short route names in the earlier memo were product sketches, not shipped
+Gradia endpoints. The canonical managed API is versioned and benchmark-audit
+scoped; a generic `/verify` would collide with existing identity, certificate and
+receipt verification surfaces.
+
+| Open/local surface | Managed `/v1` target | Question it answers | Exact state |
+|---|---|---|---|
+| `gradia-wind-tunnel index` | `GET /v1/benchmark-audit-evaluations/{evaluation_id}/gameability-index` | How gameable is this scorer? | Local index live; existing mutation/work-receipt primitives live; managed projection planned |
+| evaluator-repair campaign | `POST /v1/benchmark-audit-evaluations/{evaluation_id}/evaluator-repair-campaigns` | Did a patch cure, relocate or worsen exploitability? | Paper A and managed route unrun/unbuilt |
+| oversight study | `POST /v1/benchmark-audit-evaluations/{evaluation_id}/oversight-studies` | What oracle-wrong outputs fool this panel? | Paper B and managed route unrun/unbuilt |
+| report-fidelity assessment | `POST /v1/benchmark-audit-evaluations/{evaluation_id}/report-fidelity-assessments` | Did the agent do what it reported? | Paper C and managed route unrun/unbuilt |
+| `gradia-wind-tunnel verify-bundle BUNDLE_DIR` | optional convenience: `POST /v1/proof-packs/verify` | Is this bundle intact and derivable from its frames? | **Open offline verifier live; hosted route unbuilt** |
 
 Three properties make this a business rather than a demo:
 
@@ -273,8 +284,9 @@ index kept live; every claim shipped as a Proof Pack.
 **Lead with what is finished, not with the roadmap.** You have two artifacts that answer "can he
 deliver?" — a completed proof-bound instrument study that refuses the comparisons its evidence
 can't support, and a wind tunnel with real numbers across five benchmarks, live containerized
-SWE-bench results, 151 property tests, and **two defects it caught in itself and refused to report
-around**. That last item is the strongest signal in the whole portfolio: it demonstrates research
+SWE-bench results, 165 property/control tests, and **three defect classes it caught and now refuses
+to report around**: dirty SWE controls, a HumanEval syntax artifact, and a self-consistent forged
+aggregate. That last item is the strongest signal in the whole portfolio: it demonstrates research
 integrity under pressure, which is the rarest thing to verify in a candidate.
 
 A five-paper program presented as the headline invites "is this overreach?" This document is an

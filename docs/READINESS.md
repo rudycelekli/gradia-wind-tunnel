@@ -5,7 +5,7 @@ self-verifying, and real evidence exists.** It is not yet a completed model-trai
 or frontier-RL steering system. `program-readiness` is the canonical machine-readable
 boundary.
 
-## What is DONE and green (156 property/control tests)
+## What is DONE and green (165 property/control tests)
 
 | Capability | Status | Proof |
 |---|---|---|
@@ -21,7 +21,8 @@ boundary.
 | Analyst: spectrum, exploit-DNA, disagreement detector | ✅ | tests |
 | End-to-end orchestrator + self-verifying report | ✅ | `make run` |
 | Public benchmark families (GSM8K/MATH/GPQA/HumanEval/HLE plus live SWE harness) | ✅ mixed live/offline | tests; `suite`; `swebench-live`; `swebench-merge` |
-| **Research-grade evidence capture** (frames + manifest, every number recomputable) | ✅ | tests; `capture.verify_bundle` |
+| **Research-grade evidence capture** (frames + manifest, every derived aggregate recomputable) | ✅ | tests; `gradia-wind-tunnel verify-bundle BUNDLE_DIR` |
+| **Public timestamp anchoring** (preregistration + evidence heads; honest offline refusal) | ✅ | tests; `gradia-wind-tunnel anchor` |
 | **Analytics sink** (frames stream to Gradia analytics / warehouse) | ✅ | tests |
 | **Real universe forks on the Gradia engine** (single-variable + witness) | ✅ demonstrated | `examples/gradia_capability_demo.py`, tests |
 | Fail-closed preregistration, git-pinned + self-digested | ✅ frozen | `preregistrations/…gsm8k-01.json` |
@@ -55,6 +56,9 @@ the forks at your v4r1 mortgage scenarios is content wiring, not new capability.
   unified adapter.
 - Managed scheduling, retention and Analytics+ ingestion need deployed cross-repo
   proof.
+- The open v1 verifier and reference witness are usable today; a cross-program
+  Proof Pack schema package, badge, GitHub Action and hosted managed index remain
+  separate distribution milestones.
 
 **Bottom line:** the apparatus already produces real, replayable metrology. The next
 scientific threshold is a rights-clean, prospectively frozen, multi-seed training

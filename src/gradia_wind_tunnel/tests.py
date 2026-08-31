@@ -389,6 +389,22 @@ def main() -> int:
     _man = build_manifest({"run_id": "t", "benchmark_id": "gsm8k"}, _seps, _head)
     check("evidence bundle verifies (chain + aggregates + self-digest)",
           verify_bundle(_d / "frames.ndjson", _man)["ok"])
+    _forged = json.loads(json.dumps(_man))
+    _forged["totals"]["attempts"] += 1
+    _forged["manifest_sha256"] = __import__("gradia_wind_tunnel").digest(
+        {k: v for k, v in _forged.items() if k != "manifest_sha256"})
+    _forged_report = verify_bundle(_d / "frames.ndjson", _forged)
+    check("evidence bundle refuses a self-consistent aggregate forgery",
+          _forged_report["manifest_self_digest_ok"]
+          and not _forged_report["aggregate_checks"]["totals"]
+          and not _forged_report["ok"])
+    (_d / "manifest.json").write_text(json.dumps(_man))
+    from .cli import _verify_bundle as _verify_bundle_cli
+    check("open verify-bundle CLI accepts the intact Proof Pack",
+          _verify_bundle_cli([str(_d)]) == 0)
+    (_d / "manifest.json").write_text(json.dumps(_forged))
+    check("open verify-bundle CLI refuses the aggregate forgery",
+          _verify_bundle_cli([str(_d)]) == 1)
     _ls = (_d / "frames.ndjson").read_text().splitlines()
     _ls[-1] = _ls[-1].replace('"answer_sha256":"', '"answer_sha256":"0', 1)
     (_d / "frames.ndjson").write_text("\n".join(_ls) + "\n")
