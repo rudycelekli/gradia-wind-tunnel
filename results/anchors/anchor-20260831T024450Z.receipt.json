@@ -1,0 +1,1 @@
+{"manifest_path":"results/anchors/anchor-20260831T024450Z.json","manifest_sha256":"fa3b19348118ad0d492fa15e4c92b5ab7dc1162a683d04f5fd271d69b000d431","schema":"gradia-wind-tunnel-anchor.v1.receipt","stamp":{"hint":"pip install opentimestamps-client","reason":"ots (opentimestamps-client) not installed","stamped":false},"upgrades":[]}
