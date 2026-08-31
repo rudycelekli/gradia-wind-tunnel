@@ -382,34 +382,34 @@ def main() -> int:
     import tempfile as _tf2
     from pathlib import Path as _P
     from .capture import write_frames, build_manifest, verify_bundle
-    _d = _P(_tf2.mkdtemp())
+    _bundle_dir = _P(_tf2.mkdtemp())
     _seps = run_benchmark_l1(MathBenchmark("gsm8k"), MathBenchmark("gsm8k").offline_samples(8, 1),
                              _LJ(_SGP()), 7)
-    _head = write_frames(_d / "frames.ndjson", _seps)
+    _head = write_frames(_bundle_dir / "frames.ndjson", _seps)
     _man = build_manifest({"run_id": "t", "benchmark_id": "gsm8k"}, _seps, _head)
     check("evidence bundle verifies (chain + aggregates + self-digest)",
-          verify_bundle(_d / "frames.ndjson", _man)["ok"])
+          verify_bundle(_bundle_dir / "frames.ndjson", _man)["ok"])
     _forged = json.loads(json.dumps(_man))
     _forged["totals"]["attempts"] += 1
     _forged["manifest_sha256"] = __import__("gradia_wind_tunnel").digest(
         {k: v for k, v in _forged.items() if k != "manifest_sha256"})
-    _forged_report = verify_bundle(_d / "frames.ndjson", _forged)
+    _forged_report = verify_bundle(_bundle_dir / "frames.ndjson", _forged)
     check("evidence bundle refuses a self-consistent aggregate forgery",
           _forged_report["manifest_self_digest_ok"]
           and not _forged_report["aggregate_checks"]["totals"]
           and not _forged_report["ok"])
-    (_d / "manifest.json").write_text(json.dumps(_man))
+    (_bundle_dir / "manifest.json").write_text(json.dumps(_man))
     from .cli import _verify_bundle as _verify_bundle_cli
     check("open verify-bundle CLI accepts the intact Proof Pack",
-          _verify_bundle_cli([str(_d)]) == 0)
-    (_d / "manifest.json").write_text(json.dumps(_forged))
+          _verify_bundle_cli([str(_bundle_dir)]) == 0)
+    (_bundle_dir / "manifest.json").write_text(json.dumps(_forged))
     check("open verify-bundle CLI refuses the aggregate forgery",
-          _verify_bundle_cli([str(_d)]) == 1)
-    _ls = (_d / "frames.ndjson").read_text().splitlines()
+          _verify_bundle_cli([str(_bundle_dir)]) == 1)
+    _ls = (_bundle_dir / "frames.ndjson").read_text().splitlines()
     _ls[-1] = _ls[-1].replace('"answer_sha256":"', '"answer_sha256":"0', 1)
-    (_d / "frames.ndjson").write_text("\n".join(_ls) + "\n")
+    (_bundle_dir / "frames.ndjson").write_text("\n".join(_ls) + "\n")
     check("evidence bundle tamper is detected",
-          not verify_bundle(_d / "frames.ndjson", _man)["ok"])
+          not verify_bundle(_bundle_dir / "frames.ndjson", _man)["ok"])
 
     # --- suite phase-0 runner writes a bundle and self-digests -------------
     from .phase0 import run_suite
