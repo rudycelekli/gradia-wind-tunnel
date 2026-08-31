@@ -1,17 +1,21 @@
 ---
 title: "The Reward-Hacking Wind Tunnel: An Evaluation Immune System that Attacks, Localizes, and Repairs Benchmark Scorers"
 author: "Rudy M. Celekli, Gradia Research"
-date: "Methodology complete — preregistered — results pending. Draft of 29 August 2026"
+date: "Results reported under the frozen preregistration (Regime 1 + Regime 2). Draft of 31 August 2026"
 ---
 
-> **Pre-results boundary.** This manuscript states the design, the formal method, the
-> full architecture, and the preregistered analysis plan. It reports **no empirical
-> result about any model or benchmark yet.** Sections 12–14 are analysis scaffolds to
-> be filled from the frozen preregistration; every number in the final paper will be
-> recomputable from a committed evidence bundle whose chain head is published before
-> any run. Claims are scoped by the preregistration's `interpretation` field: we study
-> whether a benchmark's *scoring pipeline* can be gamed and whether repairing it
-> converges — not whether any model is broadly weak or any benchmark worthless.
+> **Evidence boundary.** This manuscript reports empirical results (§13) produced under
+> the frozen preregistration: L1 and L2 across five public benchmarks, witnessed
+> single-variable localization, the repair-convergence measurement, the adversary×judge
+> transfer matrix, an oracle-witnessed live SWE-bench Verified run in real task
+> containers, and the oracle-less Regime-2 arm. Every reported number is recomputable
+> from a committed, hash-chained evidence bundle. Two things are deliberately **not**
+> claimed here: HumanEval's attack family was found to be a syntax artifact (§8.5), so
+> its cells are marked superseded pending a corrected re-run; and the real-LLM-judge
+> convergence arm is instrumented but not yet reported. Claims are scoped by the
+> preregistration's `interpretation` field: we study whether a benchmark's *scoring
+> pipeline* can be gamed and whether repairing it converges — not whether any model is
+> broadly weak or any benchmark worthless.
 
 ---
 
@@ -35,9 +39,9 @@ oracle-witnessed, wrong-by-construction attacks that need zero human labels; **(
 an *autoimmunity* metric quantifying how many correct answers each patch starts
 wrongly rejecting; **(C5)** a verifiable, contamination-proof protocol whose hidden
 regression suite is hash-committed before any result exists and whose every reported
-number is recomputable from a tamper-evident evidence bundle; and **(C6)** a platform
-validation — the entire study executes on the Gradia stack, demonstrating that the
-program's tooling can run a complete research study end to end. The method further extends past answer-grading to the **agentic environment-state archetype** — reward-hacking the environment checker that grades what an agent *did* — with a typed catalog of proxy-reward hacks that are oracle-witnessed and causally localized to a single observable variable by a witnessed fork. This is the third
+number is recomputable from a tamper-evident evidence bundle;. An implementation note (§9) records that the
+study executes end to end on the witnessed-state engine of §6; that is engineering
+provenance, not a claim of the paper. The method further extends past answer-grading to the **agentic environment-state archetype** — reward-hacking the environment checker that grades what an agent *did* — with a typed catalog of proxy-reward hacks that are oracle-witnessed and causally localized to a single observable variable by a witnessed fork. This is the third
 pillar of a program on verifiable evaluation, after Interruptible Universes (proving
 *what happened*) and Gradia Guard (proving *the record was not tampered with*).
 
@@ -74,12 +78,17 @@ loop — the tunnel finds the exploit (**evaluation**), the fork names the exact
 
 ### 1.3 Contributions
 
-C1–C6, above. Three further contributions extend the method: a **judge-gaming transform family** (seven oracle-witnessed vectors targeting documented LLM-judge biases: sycophancy-bait, false-citation, format-mimicry, hedge-flooding, plus three novel to this work — fake-verification, rubric-echo, calibrated-confidence) and a **two-regime auditing framework** that carries the method to *oracle-less*, judge-scored benchmarks (H6/H7) via metamorphic relations, bias probes, and judge-disagreement geometry, backed by a witnessed-substrate confabulation oracle. Third, the **agentic environment-state archetype** (§4.6) carries the oracle-witnessed method to scorers that grade a *state* rather than an answer: a typed catalog of proxy-reward hacks — a final state that satisfies the weak environment checker while the hidden objective is unmet — each causally localized to one observable variable by a witnessed fork, the reward-hacking surface agentic benchmarks make load-bearing. Fourth, the **repair-convergence measurement** (C2): iterating attack→patch→re-attack under an autoimmunity budget, local rubric patching is shown to *relocate* rather than remove exploitability (γ_local = 0, a whack-a-mole plateau) while only a structural change to what the scorer checks converges — the first such measurement of evaluator repair. Fifth, the **living Scorer Gameability Index**: one content-addressed, recomputable number per public benchmark (density + bootstrap CI, git-pinned), distributed as a zero-install audit command and an open card schema, so the instrument becomes standing infrastructure and the artifact of responsible disclosure (§15.1). Section 3 formalizes the estimands; Sections 4–9 give the method and
+**The central claim is C2**: iterating attack→patch→re-attack under an autoimmunity
+budget, local rubric patching *relocates* exploitability rather than removing it
+(γ_local = 0, a whack-a-mole plateau), while only a structural change to what the
+scorer checks converges — the first convergence measurement of evaluator repair.
+C1 and C3 are what make that measurement possible (a causal instrument, and exploits
+that need no human label); C4 prices the repair (autoimmunity); C5 makes every number
+independently recomputable. Four further contributions extend the method: a **judge-gaming transform family** (seven oracle-witnessed vectors targeting documented LLM-judge biases: sycophancy-bait, false-citation, format-mimicry, hedge-flooding, plus three novel to this work — fake-verification, rubric-echo, calibrated-confidence) and a **two-regime auditing framework** that carries the method to *oracle-less*, judge-scored benchmarks (H6/H7) via metamorphic relations, bias probes, and judge-disagreement geometry, backed by a witnessed-substrate confabulation oracle. Third, the **agentic environment-state archetype** (§4.6) carries the oracle-witnessed method to scorers that grade a *state* rather than an answer: a typed catalog of proxy-reward hacks — a final state that satisfies the weak environment checker while the hidden objective is unmet — each causally localized to one observable variable by a witnessed fork, the reward-hacking surface agentic benchmarks make load-bearing. Fourth, the **living Scorer Gameability Index**: one content-addressed, recomputable number per public benchmark (density + bootstrap CI, git-pinned), distributed as a zero-install audit command and an open card schema, so the instrument becomes standing infrastructure and the artifact of responsible disclosure (§15.1). Section 3 formalizes the estimands; Sections 4–9 give the method and
 architecture with diagrams; Sections 10–11 the experimental design and metrics;
-Sections 12–14 the analysis scaffolds; Sections 15–18 disclosure, limitations, ethics,
-reproducibility. A complete, self-verifying instrument accompanies the paper (116
-property tests green); the only step to empirical results is a live run under the
-frozen preregistration.
+Sections 12–14 the figures, results, and analysis; Sections 15–18 disclosure, limitations, ethics,
+reproducibility. A complete, self-verifying instrument accompanies the paper (151
+property tests green), and every result in §13 regenerates from it with one command.
 
 ### 1.4 Relation to prior work in this program
 
@@ -106,6 +115,7 @@ judge" — is published. We build only in the open space.
 | LGMT — Logic-Grounded Metamorphic Testing (2605.23965) | Metamorphic testing for LLM reasoning. | Our twist: truth-breaking mutation with a machine-checkable *oracle witness* aimed at the scorer, in a causal factorial. |
 | PReMISE / Autorubric / JudgeBench / rubric-conditioned grading | Rubrics-as-spec, judge benchmarks, rubric robustness. | We are not proposing a rubric format; we break rubrics and measure repair. |
 | CAFFE (2512.16816) | Counterfactual fairness eval. | We target reward-hacking exploits with true factorial forks in a witnessed universe, validated prospectively. |
+| Adversarial training & multi-perturbation robustness | Hardening a *model* against one perturbation type often fails to transfer to others; robustness is largely attack-specific. | The nearest conceptual prior art to our relocation result, and we say so. Three differences make C2 a distinct claim: the object repaired is a **deployed benchmark scorer** (a rubric/judge/weak test), not model weights; the repair is a **natural-language or structural edit**, not gradient training; and relocation is established by a **witnessed single-variable intervention on the scorer** — parent and child scorer-worlds content-addressed, "only this clause changed" machine-checked — rather than a train/test robustness comparison that cannot rule out confounds. We also measure the *cost* of each repair (autoimmunity, C4), which the robustness literature does not. |
 
 > Positioning for the last three rows is drawn from title+abstract and must be
 > confirmed by full reads before submission. The open space is the **closed
@@ -590,7 +600,7 @@ which is the property we are asking evaluators to have.
 
 ---
 
-## 9. Running on Gradia — platform validation (C6)
+## 9. Implementation note — the execution substrate
 
 A benchmark-scorer study is a demanding end-to-end workload: generate controlled items,
 fork worlds for causal identification, call identity-pinned frontier models under a
@@ -616,7 +626,7 @@ engine, not a one-off. (Provider calls route through the Guard gateway in *gatew
 
 ---
 
-## 10. Experimental design (preregistered; to be run)
+## 10. Experimental design (preregistered; as run)
 
 ### 10.1 Testbeds
 
@@ -1122,7 +1132,7 @@ maintainers a recomputable measurement and a defense, before public release.
 
 ## 16. Limitations
 
-Two regimes: Regime 1 (oracle-backed) is instrumented and run here; Regime 2 (oracle-less, judge-scored grading) is designed with committed hypotheses (H6/H7) and a v1 instrument (metamorphic invariance/monotonicity, bias probes, judge-disagreement κ, plus a witnessed-substrate confabulation oracle), to be run under a Phase-2 preregistration; the adversary is not all real
+Two regimes: Regime 1 (oracle-backed) is instrumented and run here; Regime 2 (oracle-less, judge-scored grading) carries committed hypotheses (H6/H7) and a v1 instrument (metamorphic invariance/monotonicity, bias probes, judge-disagreement κ, plus a witnessed-substrate confabulation oracle), and is now run on GSM8K, MATH and HLE; its verdicts are weaker than Regime 1 by construction — no oracle witnesses them — and are reported as such; the adversary is not all real
 models; compute bounds rung depth; public-benchmark slices are quasi-experimental (only
 universe forks license causal claims); the local wrapper is bypassable and its receipts
 say exactly what they do not prove. The agentic archetype (§4.6) is a deterministic constructive testbed — it establishes the reward-hack catalog and witnessed single-variable localization, not any deployed agent's propensity to hack; a stochastic, agent-driven version is Phase-2 work under its own preregistration.
@@ -1187,7 +1197,8 @@ frames.ndjson` + `manifest.json`, `paper/figures/*.png`.
 
 ---
 
-*Methodology, architecture, and protocol are complete and instrumented (116 tests). The
-only remaining work is empirical: run under the frozen preregistration and fill §13–§14.
-Positioned against literature surfaced Aug 2026; a few related-work deltas are inferred
-from title+abstract and must be confirmed by full reads before submission.*
+*Methodology, architecture, and protocol are complete and instrumented (151 tests);
+§13–§14 report results under the frozen preregistration. Outstanding before submission:
+the corrected HumanEval re-run (§8.5), the real-LLM-judge convergence arm, the human
+naturalness study, and full reads of the related-work rows whose deltas are currently
+inferred from title+abstract.*
