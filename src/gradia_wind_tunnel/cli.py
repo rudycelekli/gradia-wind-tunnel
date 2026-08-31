@@ -13,6 +13,8 @@
     gradia-wind-tunnel swebench-live [--limit N] [--stratified] [--skip-done GLOB]  # LIVE SWE run (needs Docker); --skip-done resumes
     gradia-wind-tunnel swebench-merge results/swe-live-*/live --out results/swe-merged  # union runs -> one bundle
     gradia-wind-tunnel agentenv [--tasks N]                                     # agentic env-state reward-hacking
+    gradia-wind-tunnel program-readiness [--out PATH]                           # evidence-bounded capability matrix
+    gradia-wind-tunnel program-readiness-verify PATH                            # recompute the matrix digest
     gradia-wind-tunnel demo                     # offline end-to-end walkthrough
     gradia-wind-tunnel verify RUN.json          # recompute a run-log chain head
 """
@@ -124,6 +126,10 @@ def main(argv: list[str] | None = None) -> int:
         return _index(rest)
     if cmd == "realjudge":
         return _realjudge(rest)
+    if cmd == "program-readiness":
+        return _program_readiness(rest)
+    if cmd == "program-readiness-verify":
+        return _program_readiness_verify(rest)
     print(__doc__)
     return 2
 
@@ -731,6 +737,40 @@ def _realjudge(argv: list[str]) -> int:
                       "self_commit_density_per_1000": b["structural_arm"]["self_commitment_density_per_1000"]},
                      indent=2))
     return 0
+
+
+def _program_readiness(argv: list[str]) -> int:
+    """Emit the evidence-bounded role and benchmark-archetype matrix."""
+    from .canonical import write_canonical
+    from .program_readiness import build_program_readiness, verify_program_readiness
+
+    out = None
+    i = 0
+    while i < len(argv):
+        if argv[i] == "--out":
+            out = argv[i + 1]
+            i += 2
+        else:
+            raise SystemExit(f"program-readiness: unknown option {argv[i]!r}")
+    report = build_program_readiness()
+    verification = verify_program_readiness(report)
+    if out:
+        path = Path(out)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        write_canonical(path, report)
+    print(json.dumps({"report": report, "verification": verification}, indent=2))
+    return 0 if verification["ok"] else 1
+
+
+def _program_readiness_verify(argv: list[str]) -> int:
+    if len(argv) != 1:
+        raise SystemExit("usage: program-readiness-verify PATH")
+    from .canonical import load_json
+    from .program_readiness import verify_program_readiness
+
+    report = verify_program_readiness(load_json(Path(argv[0])))
+    print(json.dumps(report, indent=2, sort_keys=True))
+    return 0 if report["ok"] else 1
 
 if __name__ == "__main__":
     raise SystemExit(main())

@@ -11,17 +11,18 @@ advance in lockstep, each milestone unlocking the section it feeds.
 | **M0** | procedural generator + exact oracle + factor tags | §5 causal setup | — | ✅ |
 | **M1** | transform catalog + oracle-witness self-tests | §4 attacks | — | ✅ |
 | **M2** | judge bank (mock) + attack loop + analyst core + verifier + slice screen | §4–§6 method | H5 (offline) | ✅ |
-| **M3** | RealModelJudge via Guard; L0+L1 on one frontier benchmark under the frozen prereg | §8 first result; §9 first number | H-natural-incidence | **the one pending swap** |
-| **M4** | L2 adaptive search + naturalness screen; causal-fork engine + prospective validation | §5 causal result (Fig 2) | H5 | ✅ offline |
+| **M3** | RealModelJudge via governed provider path; L0+L1 on public benchmarks | §8 first result; §9 first number | H-natural-incidence | ✅ live |
+| **M4** | L2 bounded search + naturalness screen; causal-fork engine + prospective validation | §5 causal result (Fig 2) | H5 | ✅ live/offline; several slices inconclusive |
 | **M5** | patcher (3 modalities) + L3 + convergence loop + autoimmunity | §6 convergence (Fig 3, Fig 4) | H1, H2, H3, H4 | ✅ offline |
-| **M6** | regression vault (hash-chain) + spectrum + exploit-DNA + disagreement detector + universe seam | §7 protocol; §5 universe-tier causal | H2 (cross-benchmark) | ✅ offline |
+| **M6** | regression vault (hash-chain) + spectrum + exploit-DNA + disagreement detector + universe seam | §7 protocol; §5 universe-tier causal | H2 (cross-benchmark) | ✅ mixed live/offline |
 | **M7** | coverage theorem (scoped) | theory appendix | — | Stretch |
 
-The whole loop runs offline and self-verifies today (`make run`). M3 is the single
-runtime swap that turns the demonstration into empirical results: wire
-`GuardRoutedProvider` (providers.py) to a frontier model and point `benchmarks`
-at a real snapshot (`build_adapter('gsm8k', real=True)`). Everything downstream —
-causal localizer, patcher, convergence, vault, analyst, verifier — is unchanged.
+The whole loop runs offline and self-verifies today (`make run`), and public-
+benchmark/provider evidence now exists. The remaining research jump is not another
+provider swap: it is an admitted model-authored adversary and an actual authorized
+optimizer-backed repair/training arm. Existing deterministic patches establish
+evaluator self-hardening and relocation behavior; they do not establish learned
+model improvement.
 
 ## The freeze checklist (before any Phase-1 number)
 
@@ -49,7 +50,7 @@ make test    # keep the contract green
 make demo    # sanity-check the loop offline before spending a dollar
 ```
 
-Then, once frozen, wire `RealModelJudge` (judges.py) to your provider via Guard and
-point `benchmarks.py` at the first pinned snapshot. The loop, metrics, slice screen,
-and verifier are unchanged from the offline pilot to the real run — that is the
-point of the design.
+For a new edition, freeze the exact adapter, scorer, oracle, transform catalog,
+provider/runtime, held-out vault and claim boundary first. Real model calls go
+through the live judge path; the loop, metrics, slice screen and verifier remain
+the same from rehearsal to paid execution.

@@ -556,6 +556,25 @@ def main() -> int:
           _mres["validity"]["valid"] and "iA" in (_mres["validity"].get("excluded_instances") or {})
           and _mres["manifest"]["n_instances"] == 1)
 
+    # --- research-program readiness is content-addressed and refuses hype --
+    from .canonical import digest
+    from .program_readiness import build_program_readiness, verify_program_readiness
+    _ready = build_program_readiness()
+    _ready_check = verify_program_readiness(_ready)
+    check("program readiness self-verifies", _ready_check["ok"])
+    check("program readiness never authorizes training dispatch",
+          _ready["training_dispatch_authorized"] is False)
+    check("program readiness names every requested capability",
+          len(_ready["capabilities"]) == 6)
+    check("program readiness maps all five benchmark archetypes",
+          len(_ready["benchmark_archetypes"]) == 5)
+    _incomplete = dict(_ready)
+    _incomplete["capabilities"] = _ready["capabilities"][:-1]
+    _incomplete["readiness_sha256"] = digest(
+        {key: value for key, value in _incomplete.items() if key != "readiness_sha256"})
+    check("program readiness refuses a re-digested incomplete matrix",
+          not verify_program_readiness(_incomplete)["ok"])
+
     print(f"\n{PASSED} passed, {FAILED} failed")
     return 1 if FAILED else 0
 

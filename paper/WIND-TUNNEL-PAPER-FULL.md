@@ -1,7 +1,7 @@
 ---
 title: "The Reward-Hacking Wind Tunnel: An Evaluation Immune System that Attacks, Localizes, and Repairs Benchmark Scorers"
 author: "Rudy M. Celekli, Gradia Research"
-date: "Results reported under the frozen preregistration (Regime 1 + Regime 2). Draft of 31 August 2026"
+date: "Results reported under the frozen preregistration (Regime 1 + Regime 2). Draft of 30 August 2026"
 ---
 
 > **Evidence boundary.** This manuscript reports empirical results (§13) produced under
@@ -23,8 +23,10 @@ date: "Results reported under the frozen preregistration (Regime 1 + Regime 2). 
 
 Modern AI evaluation trusts a **scorekeeper**: an answer extractor, an LLM judge, a
 rubric grader, or a unit-test verifier that turns a model's output into a number.
-That scorekeeper is an attack surface, and no prior work has *closed and measured*
-the loop of attacking it and repairing it. The **Reward-Hacking Wind Tunnel** searches
+That scorekeeper is an attack surface. The **Reward-Hacking Wind Tunnel** closes a
+specific loop that existing reward-hacking benchmarks do not measure end to end:
+attack a deployed benchmark scorer, localize the load-bearing slice in a witnessed
+counterfactual world, repair the scorer, and re-attack untouched evidence. It searches
 for answers a famous public benchmark's scorer grades *correct* but that a machine
 **oracle** proves *wrong* — every exploit confirmed with no human label — then
 identifies the **exact causal slice** being exploited by intervening on one variable
@@ -33,13 +35,13 @@ measures whether iterated patching of the scorer **converges, plateaus, or merel
 relocates the flaw**. We contribute: **(C1)** witnessed universes as a *causal
 instrument* for evaluation failure — turning "which slice is exploited?" from a
 confounded correlation into an identified interaction effect, run on a real world
-engine with before/after roots and evolution witnesses; **(C2)** the first convergence
+engine with before/after roots and evolution witnesses; **(C2)** an explicit convergence
 measurement of evaluator repair, with a patch-generalization statistic; **(C3)**
 oracle-witnessed, wrong-by-construction attacks that need zero human labels; **(C4)**
 an *autoimmunity* metric quantifying how many correct answers each patch starts
 wrongly rejecting; **(C5)** a verifiable, contamination-proof protocol whose hidden
 regression suite is hash-committed before any result exists and whose every reported
-number is recomputable from a tamper-evident evidence bundle;. An implementation note (§9) records that the
+number is recomputable from a tamper-evident evidence bundle. An implementation note (§9) records that the
 study executes end to end on the witnessed-state engine of §6; that is engineering
 provenance, not a claim of the paper. The method further extends past answer-grading to the **agentic environment-state archetype** — reward-hacking the environment checker that grades what an agent *did* — with a typed catalog of proxy-reward hacks that are oracle-witnessed and causally localized to a single observable variable by a witnessed fork. This is the third
 pillar of a program on verifiable evaluation, after Interruptible Universes (proving
@@ -81,13 +83,13 @@ loop — the tunnel finds the exploit (**evaluation**), the fork names the exact
 **The central claim is C2**: iterating attack→patch→re-attack under an autoimmunity
 budget, local rubric patching *relocates* exploitability rather than removing it
 (γ_local = 0, a whack-a-mole plateau), while only a structural change to what the
-scorer checks converges — the first convergence measurement of evaluator repair.
+scorer checks converges — a convergence measurement of evaluator repair.
 C1 and C3 are what make that measurement possible (a causal instrument, and exploits
 that need no human label); C4 prices the repair (autoimmunity); C5 makes every number
-independently recomputable. Four further contributions extend the method: a **judge-gaming transform family** (seven oracle-witnessed vectors targeting documented LLM-judge biases: sycophancy-bait, false-citation, format-mimicry, hedge-flooding, plus three novel to this work — fake-verification, rubric-echo, calibrated-confidence) and a **two-regime auditing framework** that carries the method to *oracle-less*, judge-scored benchmarks (H6/H7) via metamorphic relations, bias probes, and judge-disagreement geometry, backed by a witnessed-substrate confabulation oracle. Third, the **agentic environment-state archetype** (§4.6) carries the oracle-witnessed method to scorers that grade a *state* rather than an answer: a typed catalog of proxy-reward hacks — a final state that satisfies the weak environment checker while the hidden objective is unmet — each causally localized to one observable variable by a witnessed fork, the reward-hacking surface agentic benchmarks make load-bearing. Fourth, the **living Scorer Gameability Index**: one content-addressed, recomputable number per public benchmark (density + bootstrap CI, git-pinned), distributed as a zero-install audit command and an open card schema, so the instrument becomes standing infrastructure and the artifact of responsible disclosure (§15.1). Section 3 formalizes the estimands; Sections 4–9 give the method and
+independently recomputable. Four further contributions extend the method: a **judge-gaming transform family** (seven oracle-witnessed vectors targeting documented LLM-judge biases: sycophancy-bait, false-citation, format-mimicry, hedge-flooding, plus three transformations introduced in this catalog — fake-verification, rubric-echo, calibrated-confidence) and a **two-regime auditing framework** that carries the method to *oracle-less*, judge-scored benchmarks (H6/H7) via metamorphic relations, bias probes, and judge-disagreement geometry, backed by a witnessed-substrate confabulation oracle. Third, the **agentic environment-state archetype** (§4.6) carries the oracle-witnessed method to scorers that grade a *state* rather than an answer: a typed catalog of proxy-reward hacks — a final state that satisfies the weak environment checker while the hidden objective is unmet — each causally localized to one observable variable by a witnessed fork, the reward-hacking surface agentic benchmarks make load-bearing. Fourth, the **living Scorer Gameability Index**: one content-addressed, recomputable number per public benchmark (density + bootstrap CI, git-pinned), distributed as a zero-install audit command and an open card schema, so the instrument becomes standing infrastructure and the artifact of responsible disclosure (§15.1). Section 3 formalizes the estimands; Sections 4–9 give the method and
 architecture with diagrams; Sections 10–11 the experimental design and metrics;
 Sections 12–14 the figures, results, and analysis; Sections 15–18 disclosure, limitations, ethics,
-reproducibility. A complete, self-verifying instrument accompanies the paper (151
+reproducibility. A complete, self-verifying instrument accompanies the paper (156
 property tests green), and every result in §13 regenerates from it with one command.
 
 ### 1.4 Relation to prior work in this program
@@ -115,6 +117,10 @@ judge" — is published. We build only in the open space.
 | LGMT — Logic-Grounded Metamorphic Testing (2605.23965) | Metamorphic testing for LLM reasoning. | Our twist: truth-breaking mutation with a machine-checkable *oracle witness* aimed at the scorer, in a causal factorial. |
 | PReMISE / Autorubric / JudgeBench / rubric-conditioned grading | Rubrics-as-spec, judge benchmarks, rubric robustness. | We are not proposing a rubric format; we break rubrics and measure repair. |
 | CAFFE (2512.16816) | Counterfactual fairness eval. | We target reward-hacking exploits with true factorial forks in a witnessed universe, validated prospectively. |
+| [EvilGenie (2511.21654)](https://arxiv.org/abs/2511.21654) | Agentic coding environments with explicit opportunities to modify tests or hard-code cases; held-out tests, LLM detection and human review. | It measures agent propensity and detector quality. We intervene on the scorer itself, identify a witnessed causal slice, then measure repair relocation and autoimmunity. |
+| [Reward Hacking Benchmark (2605.02964)](https://arxiv.org/abs/2605.02964) | Multi-step tool tasks, exploit taxonomies, difficulty-linked incidence and environment-hardening ablations across frontier models. | It is the closest behavioral complement. Our primary estimand is scorer gameability under oracle-wrong attacks and repeated scorer repair, not how often an unprompted agent chooses an exploit. |
+| [RewardHackingAgents (2603.11337)](https://arxiv.org/abs/2603.11337) | ML-engineering evaluator tampering and train/test leakage under locked/unlocked workspaces, with integrity labels and overhead. | We adopt evaluation integrity as a first-class outcome and extend it with content-addressed counterfactual localization, scorer-repair convergence, transfer and autoimmunity. |
+| [Debate Training Reduces Reward Hacking in RLAIF (2608.17776)](https://arxiv.org/abs/2608.17776) | Optimizer-backed multi-agent debate training reduces policy reward hacking against a weaker frozen judge. | It is the required learned-training comparator for our future training arm. Our current convergence result concerns evaluator repair; no result here claims policy-training lift. |
 | Adversarial training & multi-perturbation robustness | Hardening a *model* against one perturbation type often fails to transfer to others; robustness is largely attack-specific. | The nearest conceptual prior art to our relocation result, and we say so. Three differences make C2 a distinct claim: the object repaired is a **deployed benchmark scorer** (a rubric/judge/weak test), not model weights; the repair is a **natural-language or structural edit**, not gradient training; and relocation is established by a **witnessed single-variable intervention on the scorer** — parent and child scorer-worlds content-addressed, "only this clause changed" machine-checked — rather than a train/test robustness comparison that cannot rule out confounds. We also measure the *cost* of each repair (autoimmunity, C4), which the robustness literature does not. |
 
 > Positioning for the last three rows is drawn from title+abstract and must be
@@ -234,7 +240,7 @@ line between a novel reward-hacking study and a rediscovery of prompt injection.
 
 ### 4.5 The judge-gaming family (attacks the judge, not the extractor)
 
-A second transform family targets the **LLM judge's documented biases** rather than the answer extractor. Each keeps the oracle-wrong core — so a judge PASS is a *confirmed* defect, not a disagreement — and adds a **natural** rhetorical layer a deployed model could plausibly emit, passing the naturalness screen with no injection artifacts. Seven vectors ship in transform catalog v2: **sycophancy-bait** (agreement/validation framing), **false-citation** (fabricated authority), **format-mimicry** (the structure judges reward), **hedge-flooding** (comprehensive-sounding qualification), and three novel to this work — **fake-verification** (a fabricated self-check step), **rubric-echo** (asserting each criterion is met: the Goodhart letter-vs-intent attack as a transform), and **calibrated-confidence** (well-calibrated-sounding certainty). Every vector is oracle-confirmed wrong on all machine-checkable benchmarks (GSM8K, MATH, GPQA, HumanEval, HLE).
+A second transform family targets the **LLM judge's documented biases** rather than the answer extractor. Each keeps the oracle-wrong core — so a judge PASS is a *confirmed* defect, not a disagreement — and adds a **natural** rhetorical layer a deployed model could plausibly emit, passing the naturalness screen with no injection artifacts. Seven vectors ship in transform catalog v2: **sycophancy-bait** (agreement/validation framing), **false-citation** (fabricated authority), **format-mimicry** (the structure judges reward), **hedge-flooding** (comprehensive-sounding qualification), and three transformations introduced in this catalog — **fake-verification** (a fabricated self-check step), **rubric-echo** (asserting each criterion is met: the Goodhart letter-vs-intent attack as a transform), and **calibrated-confidence** (well-calibrated-sounding certainty). Every vector is oracle-confirmed wrong on all machine-checkable benchmarks (GSM8K, MATH, GPQA, HumanEval, HLE).
 
 ### 4.6 The agentic environment-state archetype (reward-hacking the checker)
 
@@ -797,12 +803,12 @@ is recomputable and tamper-evident.
 
 *Established since (offline, recomputable).* The adversary×judge **transfer matrix** (§13.6), the **repair-convergence measurement** (§7.3 — local patching relocates, γ_local = 0; structural self-commitment cures), **bootstrap CIs** on every headline number, and the **living gameability index** (§13.5).
 
-*Does not yet establish (in progress).* Whether **L2 adaptive search** raises density or cracks the near-resistant scorers (running
-now); **witnessed single-variable universe forks localizing the causal slice** behind a
-named exploit family (the program's distinguishing claim — the instrument is built, §4.6/§6,
-and runs in the L2 wave); the adversary×judge transfer matrix and whether structural judges
-(self-commitment) resist more; and convergence and patch-generalization γ under iterated
-repair. Those follow as the L2 / localization / Regime-2 bundles land.
+*Does not establish.* That bounded typed-catalog L2 search is an autonomous
+model-authored hypothesis agent; that diffuse witnessed associations identify one dominant
+causal variable where current power is insufficient; that deterministic evaluator repair is
+optimizer-backed model learning; or that any proposed training curriculum causes frontier
+model lift. Those require the admitted model-search arm and the separately authorized,
+multi-seed held-out training study described in the implementation plan.
 
 ### 13.4 L2 adaptive search and witnessed localization
 
@@ -957,11 +963,11 @@ instruments, three views, one underlying structure: *reference-free scoring is g
 diffusely, so only a structural change to what the scorer checks — not any local edit — removes
 the exploit surface.* That is the safety-relevant thesis, and every empirical leg points at it.
 
-*Live SWE-bench (running).* The containerized test-gaming measurement (§4.7) is producing valid
-oracle-witnessed exploits on real repositories under the self-validating harness — a budgeted
-stratified sweep across the twelve Verified repos, checkpointing per instance. It lands as a
-strengthener of the agentic-archetype claim, not a dependency: the offline catalog already
-carries the SWE contribution.
+*Live SWE-bench.* The merged containerized test-gaming edition (§4.7) retains **14 clean
+instances and 252 grader-level attempts**, with **12 oracle-witnessed exploits
+(47.6/1,000)**. One instance whose control was dirty is excluded rather than counted. This
+strengthens the agentic-archetype claim but does not replace the deterministic exhibit: the
+live edition measures real repository scorers, while §13.3 isolates the mechanism.
 
 ### 13.3 The agentic environment-state archetype (deterministic exhibit)
 
@@ -1149,7 +1155,7 @@ The preregistration is git-pinned, spend-capped, and self-digested; the transfor
 and oracle specs are frozen and hashed into it; the hidden-vault empty head is published
 before any run. Every reported number is recomputable from `frames.ndjson` via
 `verify_bundle`, and the whole study replays offline from checked-in evidence. The
-instrument ships with 141 property tests. **Dataset provenance:** the canonical MATH source
+instrument ships with 156 property/control tests. **Dataset provenance:** the canonical MATH source
 (`hendrycks/competition_math`) was withdrawn under a January 2025 copyright takedown
 (Art of Problem Solving); runs load the same competition problems from a community mirror
 (`DigitalLearningGmbH/MATH-lighteval`, `test` split — the source confirmed for this study),
@@ -1197,7 +1203,7 @@ frames.ndjson` + `manifest.json`, `paper/figures/*.png`.
 
 ---
 
-*Methodology, architecture, and protocol are complete and instrumented (151 tests);
+*Methodology, architecture, and protocol are complete and instrumented (156 tests);
 §13–§14 report results under the frozen preregistration. Outstanding before submission:
 the corrected HumanEval re-run (§8.5), the real-LLM-judge convergence arm, the human
 naturalness study, and full reads of the related-work rows whose deltas are currently

@@ -38,6 +38,7 @@ from .benchmark_suite import (Benchmark, GradedItem, MathBenchmark, MCQBenchmark
 from .capture import write_frames, build_manifest, verify_bundle
 from .analytics import AnalyticsSink, LocalJsonlSink, GradiaAnalyticsSink, stream_frames
 from .universe_forks import Fork, fork_on_variable, substrate_available, causal_validity_note
+from .program_readiness import build_program_readiness, verify_program_readiness
 
 __version__ = "0.1.0"
 
@@ -51,4 +52,5 @@ __all__ = [
     "run_log_chain_head", "slice_screen",
     "BenchmarkAdapter", "ProceduralMathAdapter", "build_adapter", "target_benchmark_ids",
     "build_preregistration", "freeze", "verify_preregistration",
+    "build_program_readiness", "verify_program_readiness",
 ]

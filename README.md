@@ -31,7 +31,7 @@ backstop.
 ## Try it now (offline, no API key)
 
 ```bash
-make test    # 45 property tests, all green
+make test    # 156 property/control tests, all green
 make demo    # narrated walkthrough of the whole loop
 make run     # run the FULL study; writes a self-verifying report to results/
 ```
@@ -54,11 +54,13 @@ python -c "from gradia_wind_tunnel.benchmarks import build_adapter; \
            a=build_adapter('gsm8k', real=True); print(len(a.items()), 'real GSM8K items')"
 ```
 
-The GSM8K adapter is fully wired; MATH, GPQA, and HumanEval ship real, unit-tested
-oracles (`real_benchmarks.py`) and Phase-1 items. Swap the deterministic judge for
-`GuardRoutedProvider` (a Guard-gated model, key never in the process) to collect
-real exploit-density numbers. Causal-strength slices come from
-`universe_forks.py` when `gradia_universes` is installed.
+GSM8K, MATH, GPQA-Diamond, HumanEval and the machine-checkable HLE subset ship
+real adapters/oracles. The live SWE harness runs verified repository containers,
+records full-test and weak/public-test outcomes, and excludes dirty controls. Real
+provider judging is implemented in `llm_judge.py` and `realjudge.py`; the older
+`GuardRoutedProvider` class remains an integration seam, not the live-results path.
+Causal-strength slices come from `universe_forks.py` when `gradia_universes` is
+installed.
 
 ## Freeze the science first (the foundation)
 
@@ -108,15 +110,16 @@ Design and full method: [`docs/`](docs/) and the paper draft in [`paper/`](paper
 
 ## Status
 
-Public research beta. The **entire methodology is implemented and green (45 tests)**:
+Public research beta. The **implemented methodology is green (156 tests)**:
 all four services plus the causal localizer, the three-modality patcher, the
 convergence loop, the hash-committed vault, and the analyst extras, driven by a
-one-command orchestrator that emits a self-verifying report. Real oracles for
-GSM8K/MATH/GPQA/HumanEval are unit-tested; GSM8K loads real data end-to-end. The
-remaining Phase-0 step is the one runtime swap: point the judge at a Guard-routed
-frontier model and run under the frozen preregistration. **No empirical claim about
-any real model or benchmark is made** until that run happens; the offline numbers
-demonstrate the machinery, not a finding.
+one-command orchestrator that emits a self-verifying report. Real model-judge
+attacks have run across public benchmark families. The current live SWE edition
+retains 14 clean instances and 252 grader-level attempts, with 12 witnessed
+exploits (47.6/1,000); one control-dirty instance is excluded rather than counted.
+These are evaluation-metrology findings, not evidence that a training intervention
+improves a frontier model. `program-readiness` emits the exact live/offline/wired/
+designed boundary and refuses training-dispatch claims.
 
 ## License
 

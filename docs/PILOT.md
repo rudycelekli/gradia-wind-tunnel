@@ -39,11 +39,11 @@ On procedurally generated GSM8K-style math with an **exact numeric oracle**
 
 ## Going to Phase 0 (real numbers, your budget)
 
-Swap `KeywordGamingJudge` for `RealModelJudge` in `judges.py`: wire your
-provider SDK into `.score(...)`, keep the `Verdict` shape, and route every judge
-call through Gradia Guard so each is a hash-chained receipt. Point `items.py` at
-a real named benchmark's items + oracle. The loop, slice screen, metrics, and
-verifier are unchanged.
+The live path now exists in `llm_judge.py` and `realjudge.py`; do not edit the
+offline pilot to add credentials. Start a new preregistered edition, select a
+real named benchmark adapter and machine oracle, and route calls through the
+governed provider boundary. The loop, slice screen, metrics and verifier remain
+unchanged.
 
 ## Honesty note
 
@@ -62,4 +62,4 @@ model. Real findings come from Phase 0 with `RealModelJudge`.
 | `windtunnel.py` | attack loop, exploit density, slice screen, autoimmunity, chain head |
 | `verify.py` | recompute density + chain head from a run log; detect tamper |
 | `demo.py` | the end-to-end narrated run |
-| `tests.py` | 16 property tests |
+| `tests.py` | pilot property tests; the repository-level `make test` gate runs 156 controls |

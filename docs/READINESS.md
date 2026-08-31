@@ -1,9 +1,11 @@
 # End-to-end readiness — is the foundation ready to run benchmarks?
 
-Short answer: **yes, the instrument is complete and self-verifying.** The only
-thing between here and real results is your API key + the Guard gateway.
+Short answer: **the evaluation-metrology instrument is implemented and
+self-verifying, and real evidence exists.** It is not yet a completed model-training
+or frontier-RL steering system. `program-readiness` is the canonical machine-readable
+boundary.
 
-## What is DONE and green (71 tests, on your Mac)
+## What is DONE and green (156 property/control tests)
 
 | Capability | Status | Proof |
 |---|---|---|
@@ -18,25 +20,23 @@ thing between here and real results is your API key + the Guard gateway.
 | Hash-committed regression vault (reveal + tamper detect) | ✅ | tests |
 | Analyst: spectrum, exploit-DNA, disagreement detector | ✅ | tests |
 | End-to-end orchestrator + self-verifying report | ✅ | `make run` |
-| **All five benchmarks** (GSM8K/MATH/GPQA/HumanEval runnable; SWE-bench scaffold) | ✅ | tests; `suite` |
+| Public benchmark families (GSM8K/MATH/GPQA/HumanEval/HLE plus live SWE harness) | ✅ mixed live/offline | tests; `suite`; `swebench-live`; `swebench-merge` |
 | **Research-grade evidence capture** (frames + manifest, every number recomputable) | ✅ | tests; `capture.verify_bundle` |
 | **Analytics sink** (frames stream to Gradia analytics / warehouse) | ✅ | tests |
 | **Real universe forks on the Gradia engine** (single-variable + witness) | ✅ demonstrated | `examples/gradia_capability_demo.py`, tests |
 | Fail-closed preregistration, git-pinned + self-digested | ✅ frozen | `preregistrations/…gsm8k-01.json` |
 
-## What is YOURS to do for real results (needs your key/gateway/Zenodo)
+## What remains for a training-impact result
 
-1. **Pin the dataset snapshots** in `contracts.TARGET_BENCHMARKS` and re-freeze.
-2. **Publish the frozen prereg to Zenodo** (`docs/ZENODO-PREREG-DESCRIPTION.md`) → DOI.
-3. **Bring up the Guard gateway**, export `GRADIA_GUARD_LOCAL_CAPABILITY`, and:
-   ```bash
-   python -m gradia_wind_tunnel.cli suite --benchmark gsm8k --real --live \
-     --model claude-opus-5 --gateway http://127.0.0.1:8787 \
-     --prereg-sha256 <frozen> --out results/gsm8k-live
-   ```
-   → first real exploit-density number + a recomputable evidence bundle.
-4. Repeat across MATH / GPQA / HumanEval; wire the SWE-bench harness; run the
-   convergence loop; generate figures.
+1. Freeze disjoint train, validation and untouched held-out memberships.
+2. Obtain explicit evaluation/training/raw-trajectory rights for the intended
+   recipient and compile a Gradia training-steering order.
+3. Authorize one real trainer separately; the order itself is intentionally
+   non-dispatchable.
+4. Compare baseline and candidate at matched runtime/scaffold/evaluator/seeds,
+   with item-clustered uncertainty and autoimmunity/regression metrics.
+5. Re-attack the hidden vault and report cured, relocated, regressed or
+   inconclusive. Do not translate a scorer improvement into model lift.
 
 ## Does this prove Gradia runs complex custom environments?
 
@@ -45,11 +45,17 @@ real Gradia engine with tool actions, a single-variable branch, and a tamper-evi
 proof chain. The universe-fork causal method rides on that same substrate. Pointing
 the forks at your v4r1 mortgage scenarios is content wiring, not new capability.
 
-## Known follow-ups (not blockers)
+## Open research/product gates
 
-- Guard: fix the scope-sort collation split (one shared code-unit comparator) and
-  publish the `0.1.0-beta.1` npm release — both flagged earlier.
-- Stream `frames.ndjson` to your live Gradia analytics endpoint (sink is built).
+- L2 is bounded typed-catalog search, not autonomous model-authored hypothesis
+  generation.
+- Existing repair/curriculum arms harden the evaluator offline; they are not
+  optimizer-backed model training.
+- The live SWE harness and older `SWEBenchmark` protocol surface still need one
+  unified adapter.
+- Managed scheduling, retention and Analytics+ ingestion need deployed cross-repo
+  proof.
 
-**Bottom line:** the end-to-end foundation is ready. The next action that produces a
-real result is one live run.
+**Bottom line:** the apparatus already produces real, replayable metrology. The next
+scientific threshold is a rights-clean, prospectively frozen, multi-seed training
+study whose result survives held-out re-attack.
