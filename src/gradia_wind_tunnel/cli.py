@@ -600,6 +600,9 @@ def _swebench_live(argv: list[str]) -> int:
     prune_images = True
     prune_all = False
     min_free_gb = 20.0
+    max_instance_seconds = 1200.0
+    pull_timeout = 1200
+    oracle_timeout = 900
     skip_globs: list = []
     i = 0
     while i < len(argv):
@@ -615,6 +618,9 @@ def _swebench_live(argv: list[str]) -> int:
         elif a == "--prune-all": prune_all = True; i += 1
         elif a == "--min-free-gb": min_free_gb = float(argv[i + 1]); i += 2
         elif a == "--skip-done": skip_globs.append(argv[i + 1]); i += 2
+        elif a == "--max-instance-seconds": max_instance_seconds = float(argv[i + 1]); i += 2
+        elif a == "--pull-timeout": pull_timeout = int(argv[i + 1]); i += 2
+        elif a == "--oracle-timeout": oracle_timeout = int(argv[i + 1]); i += 2
         else: raise SystemExit(f"swebench-live: unknown option {a!r}")
     run_id = run_id or ("gradia-wind-tunnel-swebench-live-" + datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S"))
     skip_ids = None
@@ -630,7 +636,8 @@ def _swebench_live(argv: list[str]) -> int:
                            timeout=timeout, stratified=stratified, seed=seed,
                            prune_images=prune_images, prune_all=prune_all, min_free_gb=min_free_gb,
                            preregistration_sha256=os.environ.get("GRADIA_WT_PREREG_SHA256"),
-                           skip_ids=skip_ids)
+                           skip_ids=skip_ids, max_instance_seconds=max_instance_seconds,
+                           pull_timeout=pull_timeout, oracle_timeout=oracle_timeout)
     m = res["manifest"]
     v = res.get("validity", {})
     print(json.dumps({

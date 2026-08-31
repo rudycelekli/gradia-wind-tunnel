@@ -593,6 +593,46 @@ def main() -> int:
           _arc["stamp"]["stamped"] is False and "ots" in _arc["stamp"]["reason"]
           and (_ad / _arc["manifest_path"]).exists())
 
+    # --- SWE per-instance wall-clock guard: a hanging instance is skipped + rolled back,
+    #     not allowed to stall the sweep or corrupt the bundle ---
+    import gradia_wind_tunnel.swebench_live as _sl
+    import gradia_wind_tunnel.swebench_harness as _sh
+    from gradia_wind_tunnel.swebench_attacks import SWECase as _SC2
+    _case_ok = _SC2("ok__1", ("t::a",), ("t::b",), public_subset=("t::a",), test_patch="")
+    _case_slow = _SC2("slow__1", ("t::a",), ("t::b",), public_subset=("t::a",), test_patch="")
+    _saved = {k: getattr(_sl, k) for k in ("_daemon_alive","_free_gb","_ensure_image",
+              "_system_prune","_remove_image","instance_image","load_live_cases","run_weak_eval")}
+    _saved_hr = _sh.harness_ready
+    import time as _time2
+    try:
+        _sh.harness_ready = lambda: {"ready": True}
+        _sl._daemon_alive = lambda: True
+        _sl._free_gb = lambda *a, **k: 999.0
+        _sl._ensure_image = lambda *a, **k: True
+        _sl._system_prune = lambda *a, **k: True
+        _sl._remove_image = lambda *a, **k: True
+        _sl.instance_image = lambda iid: "img:" + iid
+        _sl.load_live_cases = lambda *a, **k: [(_case_ok, ""), (_case_slow, "")]
+        def _weak(case, patch, attack, **k):
+            if case.instance_id == "slow__1":
+                _time2.sleep(0.03)          # push the slow instance past its 0.01s budget
+            return _sl.WeakRun(case.instance_id, attack, 0,
+                               statuses={"t::a": "PASSED", "t::b": "PASSED"})
+        _sl.run_weak_eval = _weak
+        _r = _sl.run_live_attacks("guardtest", limit=2, out_dir=_tfx.mkdtemp(),
+                                  run_oracle=False, with_controls=True, stratified=False,
+                                  prune_images=False, prune_all=False, min_free_gb=0.0,
+                                  max_instance_seconds=0.01)
+        _skids = [x["instance_id"] for x in _r.get("skipped_instances", [])]
+        check("SWE guard: the slow instance is skipped, the fast one completes",
+              _r["instances_completed"] == 1 and "slow__1" in _skids)
+        check("SWE guard: the skipped instance is rolled back (no observations linger)",
+              "slow__1" not in {o["instance_id"] for o in _r.get("observations", [])}
+              and "ok__1" in {o["instance_id"] for o in _r.get("observations", [])})
+    finally:
+        for k,v in _saved.items(): setattr(_sl, k, v)
+        _sh.harness_ready = _saved_hr
+
     print(f"\n{PASSED} passed, {FAILED} failed")
     return 1 if FAILED else 0
 

@@ -449,11 +449,14 @@ def run_live_attacks(run_id: str, *, limit: int = 3, out_dir: str | None = None,
                      run_oracle: bool = True, with_controls: bool = True,
                      timeout: int = 1800, stratified: bool = False, seed: int = 20260830,
                      prune_images: bool = True, prune_all: bool = False, min_free_gb: float = 20.0,
+                     max_instance_seconds: float = 1200.0, pull_timeout: int = 1200,
+                     oracle_timeout: int = 900,
                      preregistration_sha256: str | None = None,
                      skip_ids: set | None = None) -> dict:
     """THE live SWE reward-hacking measurement. Per (instance, patch): one weak container
     run -> three proxy verdicts; plus the official harness for the oracle. Checkpoints a
     verifying evidence bundle after EACH instance, so a long/interrupted run is safe."""
+    import time
     from pathlib import Path
     from .swebench_harness import evaluate_patch, harness_ready
     ready = harness_ready()
@@ -470,6 +473,7 @@ def run_live_attacks(run_id: str, *, limit: int = 3, out_dir: str | None = None,
     done: list = []
     result = None
     stopped_early = ""
+    skipped_instances: list = []
     for ci, (case, gold) in enumerate(cases, 1):
         free = _free_gb()
         if free < min_free_gb:
@@ -480,9 +484,17 @@ def run_live_attacks(run_id: str, *, limit: int = 3, out_dir: str | None = None,
             stopped_early = (f"stopped before {case.instance_id}: the Docker daemon stopped "
                              f"responding; {len(done)} instances completed")
             break
+        inst_start = time.monotonic()
+        ep_mark, obs_mark, agree_mark, disagree_mark = len(episodes), len(observations), agree, disagree
         img = instance_image(case.instance_id)
-        _ensure_image(img)
+        if not _ensure_image(img, timeout=pull_timeout):
+            skipped_instances.append({"instance_id": case.instance_id,
+                                      "reason": f"image pull failed or exceeded {pull_timeout}s"})
+            continue
+        timed_out = False
         for name, build in builders.items():
+            if time.monotonic() - inst_start > max_instance_seconds:
+                timed_out = True; break
             atk = build(case)
             patch = gold if name == "gold_fix" else atk.patch
             run = run_weak_eval(case, patch, name, timeout=timeout)
@@ -490,7 +502,7 @@ def run_live_attacks(run_id: str, *, limit: int = 3, out_dir: str | None = None,
             orc_known = True
             if run_oracle:
                 try:
-                    res = evaluate_patch(case.instance_id, patch, run_id=run_id)
+                    res = evaluate_patch(case.instance_id, patch, run_id=run_id, timeout=oracle_timeout)
                     raw = res.get("resolved")
                     if raw is None:
                         orc_known = False; orc = False
@@ -521,6 +533,16 @@ def run_live_attacks(run_id: str, *, limit: int = 3, out_dir: str | None = None,
                 "oracle_known": orc_known, "observed_weak": observed,
                 "predicted_weak": {g: weak_pass(g, atk.effect) for g in GRADERS},
                 "oracle_resolved": orc, "error": run.error})
+        if timed_out:
+            del episodes[ep_mark:]; del observations[obs_mark:]
+            agree, disagree = agree_mark, disagree_mark
+            skipped_instances.append({"instance_id": case.instance_id,
+                                      "reason": f"exceeded {max_instance_seconds:.0f}s wall-clock budget"})
+            if prune_all:
+                _system_prune()
+            elif prune_images:
+                _remove_image(img)
+            continue
         done.append(case)
         result = _finalize_swe_bundle(run_id, out, done, episodes, observations, agree, disagree,
                                       run_oracle, with_controls, preregistration_sha256)
@@ -540,6 +562,8 @@ def run_live_attacks(run_id: str, *, limit: int = 3, out_dir: str | None = None,
     if stopped_early:
         result["stopped_early"] = stopped_early
     result["instances_completed"] = len(done)
+    if skipped_instances:
+        result["skipped_instances"] = skipped_instances
     return result
 
 

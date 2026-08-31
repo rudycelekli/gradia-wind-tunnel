@@ -64,7 +64,7 @@ fi
 
 # ---- resume: add up to BATCH fresh instances, pruning Docker between each ----
 say ""; say "===== adding up to $BATCH fresh instance(s) toward $TARGET (prune-all between each) -> $OUT/live ====="
-python3 -m gradia_wind_tunnel.cli swebench-live --stratified --limit "$BATCH" --min-free-gb "$MIN_FREE" --prune-all \
+python3 -m gradia_wind_tunnel.cli swebench-live --stratified --limit "$BATCH" --min-free-gb "$MIN_FREE" --prune-all --max-instance-seconds "${MAX_INSTANCE_SECONDS:-1200}" \
   --skip-done "$BASE" --skip-done "results/swe-cont-*/live" --skip-done "results/swe-merged" \
   --out "$OUT/live" 2>&1 | tee -a "$OUT/more.log" | tail -60
 [ -f "$OUT/live/progress.txt" ] && { say ""; say "  last checkpoint: $(tail -1 "$OUT/live/progress.txt")"; }
