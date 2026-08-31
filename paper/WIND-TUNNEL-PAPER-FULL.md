@@ -41,7 +41,9 @@ oracle-witnessed, wrong-by-construction attacks that need zero human labels; **(
 an *autoimmunity* metric quantifying how many correct answers each patch starts
 wrongly rejecting; **(C5)** a verifiable, contamination-proof protocol whose hidden
 regression suite is hash-committed before any result exists and whose every reported
-number is recomputable from a tamper-evident evidence bundle. An implementation note (§9) records that the
+number is recomputable from a tamper-evident evidence bundle whose preregistration and chain heads
+are anchored in public timestamp logs — backdating or equivocation by the authors is
+detectable by anyone. An implementation note (§9) records that the
 study executes end to end on the witnessed-state engine of §6; that is engineering
 provenance, not a claim of the paper. The method further extends past answer-grading to the **agentic environment-state archetype** — reward-hacking the environment checker that grades what an agent *did* — with a typed catalog of proxy-reward hacks that are oracle-witnessed and causally localized to a single observable variable by a witnessed fork. This is the third
 pillar of a program on verifiable evaluation, after Interruptible Universes (proving
@@ -89,7 +91,7 @@ that need no human label); C4 prices the repair (autoimmunity); C5 makes every n
 independently recomputable. Four further contributions extend the method: a **judge-gaming transform family** (seven oracle-witnessed vectors targeting documented LLM-judge biases: sycophancy-bait, false-citation, format-mimicry, hedge-flooding, plus three transformations introduced in this catalog — fake-verification, rubric-echo, calibrated-confidence) and a **two-regime auditing framework** that carries the method to *oracle-less*, judge-scored benchmarks (H6/H7) via metamorphic relations, bias probes, and judge-disagreement geometry, backed by a witnessed-substrate confabulation oracle. Third, the **agentic environment-state archetype** (§4.6) carries the oracle-witnessed method to scorers that grade a *state* rather than an answer: a typed catalog of proxy-reward hacks — a final state that satisfies the weak environment checker while the hidden objective is unmet — each causally localized to one observable variable by a witnessed fork, the reward-hacking surface agentic benchmarks make load-bearing. Fourth, the **living Scorer Gameability Index**: one content-addressed, recomputable number per public benchmark (density + bootstrap CI, git-pinned), distributed as a zero-install audit command and an open card schema, so the instrument becomes standing infrastructure and the artifact of responsible disclosure (§15.1). Section 3 formalizes the estimands; Sections 4–9 give the method and
 architecture with diagrams; Sections 10–11 the experimental design and metrics;
 Sections 12–14 the figures, results, and analysis; Sections 15–18 disclosure, limitations, ethics,
-reproducibility. A complete, self-verifying instrument accompanies the paper (156
+reproducibility. A complete, self-verifying instrument accompanies the paper (160
 property tests green), and every result in §13 regenerates from it with one command.
 
 ### 1.4 Relation to prior work in this program
@@ -605,6 +607,43 @@ bug. Both defects were found by machinery designed to make the instrument disagr
 which is the property we are asking evaluators to have.
 
 ---
+
+### 8.6 Public anchoring: existence-at-time and non-equivocation
+
+A hash chain the authors control is tamper-evident, not self-authenticating. Internal
+consistency cannot show that the chain presented is the *original* one rather than a
+wholesale regeneration; that the preregistration SHA (Appendix A) or the hidden-vault
+commitment (§8.2) existed *before* the results did; or that every reader is shown the
+*same* history. All three gaps reduce to two properties — existence-at-time and
+non-equivocation — and both are supplied by anchoring a digest in public infrastructure
+the authors do not control. This is the timestamping primitive of Haber & Stornetta
+(1991), the direct ancestor of Certificate Transparency (RFC 6962), which closed exactly
+this equivocation problem for the web PKI, and of Sigstore/Rekor for the software supply
+chain.
+
+The instrument therefore ships an anchoring step (`cli anchor`, run automatically at the
+end of every `run_research.sh` fold). It writes one canonical **anchor manifest** — the
+preregistration SHA plus the sha256 of the research report, the living index, and the
+SWE evidence manifest, with absent artifacts listed as absent rather than silently
+skipped — and stamps that single file with OpenTimestamps. The stamp initially commits
+the digest to public calendar servers and later upgrades to a Bitcoin block-inclusion
+proof (`ots upgrade`); earlier proofs are upgraded on every subsequent run. Verification
+requires nothing from us: recompute the listed digests, then check the `.ots` proof
+against public infrastructure.
+
+Two honesty notes, in the instrument's own idiom. Anchoring is best-effort, and the
+receipt states plainly whether a stamp happened: a missing client or refused network
+yields `stamped: false` with the reason — never a fabricated proof (the first receipt in
+this repository is exactly such an honest failure, produced from a sandbox with no
+stamper installed). And anchoring proves *when* evidence existed, never that it is
+*correct* — correctness remains the job of the oracle witness and `verify_bundle`. With
+anchoring, the protocol's claim strengthens from "tamper-evident and recomputable" to
+**tamper-evident, recomputable, publicly timestamped, and non-equivocating**: rewriting
+history or backdating a commitment is detectable by anyone, using logs we do not
+control. We deliberately use no blockchain beyond this: computation, tasks, and hidden
+vaults stay off-chain (secrecy and cost), and a Certificate-Transparency-style public
+log for scorer versions and index cards — rather than any consensus mechanism — is the
+planned extension for the living index.
 
 ## 9. Implementation note — the execution substrate
 

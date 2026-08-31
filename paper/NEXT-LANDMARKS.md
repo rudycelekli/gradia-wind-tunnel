@@ -43,7 +43,8 @@ response object.
 | **Verifier** | recomputes chain head, aggregates, self-digest → green/red, offline | `verify_bundle` |
 | **Self-validation** | controls misbehave ⇒ the instrument **refuses to report** | SWE control audit, clean-instance reporting |
 | **Intervals** | item-clustered bootstrap CI on every headline number | `stats.bootstrap_density_ci` |
-| **Tests** | property guards, including one per defect the tool caught in itself | 151 green |
+| **Tests** | property guards, including one per defect the tool caught in itself | 160 green |
+| **Anchor** | public timestamp proof of the prereg SHA + evidence heads (OpenTimestamps; CT-style log planned) | `cli anchor` in `run_research.sh` — live today |
 
 **Why this is the brand, not the plumbing.** Anyone can publish a table. The distinctive thing —
 across both existing artifacts — is an apparatus that *declines*: Conditionally Approved refuses
@@ -71,6 +72,18 @@ exact opposite of the claim.
 This is the standard open-core split, and it is what makes the moat *defensible in review*:
 verification is free and universal; producing the evidence at scale is the product. Every paper
 states plainly: **verification requires nothing from Gradia.**
+
+**Public anchoring (shipped).** A chain we control proves integrity, not originality or time:
+it cannot show the history wasn't regenerated, the prereg wasn't backdated, or that everyone
+sees the same chain. So every `run_research.sh` fold now stamps an **anchor manifest** — the
+preregistration SHA plus the evidence heads — via OpenTimestamps (calendar attestation
+upgrading to Bitcoin block inclusion), with receipts that honestly record `stamped: false`
+when no stamper or network is available. The sentence every paper carries: *the
+preregistration and evidence heads are anchored in public timestamp logs; backdating or
+equivocation by the authors is detectable by anyone.* This is the Haber–Stornetta / CT /
+Sigstore lineage, deliberately not a blockchain play — no tokens, no on-chain compute, no
+consensus; the CT-style public log for scorer versions and index cards (E, §3) is the
+natural extension.
 
 ---
 
