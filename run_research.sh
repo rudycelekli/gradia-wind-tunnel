@@ -11,3 +11,6 @@ python3 -m gradia_wind_tunnel.cli research --out "$OUT" --transfer-limit "${TLIM
 echo ""; echo "### living scorer gameability index"
 python3 -m gradia_wind_tunnel.cli index --out "$OUT/index"
 echo ""; echo "### markdown tables written:"; ls "$OUT"/*.md 2>/dev/null
+echo ""; echo "### public anchoring (OpenTimestamps) -- timestamped, non-equivocating evidence"
+command -v ots >/dev/null 2>&1 || pip install --quiet opentimestamps-client >/dev/null 2>&1 || true
+python3 -m gradia_wind_tunnel.cli anchor || echo "  (anchoring is best-effort; the receipt records whether a stamp happened)"

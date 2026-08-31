@@ -12,6 +12,7 @@
     gradia-wind-tunnel swebench-attacks [--cases N]                             # SWE test-gaming attack catalog
     gradia-wind-tunnel swebench-live [--limit N] [--stratified] [--skip-done GLOB]  # LIVE SWE run (needs Docker); --skip-done resumes
     gradia-wind-tunnel swebench-merge results/swe-live-*/live --out results/swe-merged  # union runs -> one bundle
+    gradia-wind-tunnel anchor                                                   # public timestamp anchor (OpenTimestamps)
     gradia-wind-tunnel agentenv [--tasks N]                                     # agentic env-state reward-hacking
     gradia-wind-tunnel program-readiness [--out PATH]                           # evidence-bounded capability matrix
     gradia-wind-tunnel program-readiness-verify PATH                            # recompute the matrix digest
@@ -126,6 +127,8 @@ def main(argv: list[str] | None = None) -> int:
         return _index(rest)
     if cmd == "realjudge":
         return _realjudge(rest)
+    if cmd == "anchor":
+        return _anchor(rest)
     if cmd == "program-readiness":
         return _program_readiness(rest)
     if cmd == "program-readiness-verify":
@@ -771,6 +774,30 @@ def _program_readiness_verify(argv: list[str]) -> int:
     report = verify_program_readiness(load_json(Path(argv[0])))
     print(json.dumps(report, indent=2, sort_keys=True))
     return 0 if report["ok"] else 1
+
+def _anchor(argv: list[str]) -> int:
+    """Anchor the preregistration SHA + evidence heads in public timestamp infrastructure
+    (OpenTimestamps). Builds one canonical anchor manifest, stamps it, upgrades earlier
+    proofs. Best-effort and honest: no ots / no network => the receipt says NOT stamped."""
+    from .anchoring import anchor
+    extra: list = []
+    out = "results/anchors"
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "--out": out = argv[i + 1]; i += 2
+        elif a == "--add": extra.append(argv[i + 1]); i += 2
+        else: raise SystemExit(f"anchor: unknown option {a!r}")
+    r = anchor(".", out_dir=out, extra=extra)
+    st = r.get("stamp", {})
+    print(json.dumps({
+        "manifest": r.get("manifest_path"), "manifest_sha256": r.get("manifest_sha256"),
+        "STAMPED": bool(st.get("stamped")),
+        "proof": st.get("ots_path"), "reason": st.get("reason"), "note": st.get("note"),
+        "prior_proofs_upgraded": sum(1 for u in r.get("upgrades", []) if u.get("upgraded")),
+    }, indent=2))
+    return 0
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

@@ -575,6 +575,24 @@ def main() -> int:
     check("program readiness refuses a re-digested incomplete matrix",
           not verify_program_readiness(_incomplete)["ok"])
 
+    # --- public anchoring: digests recompute; a missing stamper degrades HONESTLY ---
+    from gradia_wind_tunnel.anchoring import (anchor as _anchor_run,
+                                              build_anchor_manifest as _bam,
+                                              verify_attestations as _va)
+    _ad = _PPx(_tfx.mkdtemp())
+    (_ad / "results" / "research-v1").mkdir(parents=True)
+    (_ad / "results" / "research-v1" / "research_report.json").write_text('{"x":1}')
+    _man = _bam(_ad, created_utc="2026-08-31T00:00:00Z")
+    check("anchor manifest hashes every present artifact and names the absent ones",
+          any(a.get("sha256") for a in _man["artifacts"]) and any(a.get("absent") for a in _man["artifacts"]))
+    check("anchor verification recomputes digests (clean tree verifies)", _va(_man, _ad)["ok"])
+    (_ad / "results" / "research-v1" / "research_report.json").write_text('{"x":2}')
+    check("anchor verification catches a mutated artifact", not _va(_man, _ad)["ok"])
+    _arc = _anchor_run(_ad, ots_bin="/nonexistent/ots", created_utc="2026-08-31T00:00:01Z")
+    check("anchoring without a stamper is refused honestly (stamped=false + reason, manifest still written)",
+          _arc["stamp"]["stamped"] is False and "ots" in _arc["stamp"]["reason"]
+          and (_ad / _arc["manifest_path"]).exists())
+
     print(f"\n{PASSED} passed, {FAILED} failed")
     return 1 if FAILED else 0
 
