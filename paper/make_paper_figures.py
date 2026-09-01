@@ -78,20 +78,48 @@ def fig_gameability():
             ax.text(tx, yy, f"{v:.1f}" + ("" if v>0 else "  (0/CI 0)"),
                     va="center", ha="left", fontsize=9.2,
                     color=col if v>0 else MUTED, fontweight="bold")
-    ax.set_yticks(y); ax.set_yticklabels([label[b] for b in order], fontsize=11.5)
+    # --- SWE-bench: a DIFFERENT scorer archetype (weak test grader) — shown separately, never pooled ---
+    import collections as _c
+    man = json.load(open(RES/"swe-merged/manifest.json"))
+    swe_pt = man["totals"]["overall_density_per_1000"]
+    _obs = json.load(open(RES/"swe-merged/observations.json"))["observations"]
+    _excl = set(man["validity"]["excluded_instances"].keys())
+    _per = _c.defaultdict(lambda: [0, 0])
+    for o in _obs:
+        if o["instance_id"] in _excl: continue
+        _of = (o.get("oracle_known") is True) and (o.get("oracle_resolved") is False)
+        for g in ("present_tests", "exit_code", "public_subset"):
+            _per[o["instance_id"]][1] += 1
+            if bool(o.get("observed_weak", {}).get(g)) and _of: _per[o["instance_id"]][0] += 1
+    _keys = list(_per); _rng = np.random.default_rng(20260830)
+    def _dens(s):
+        e = sum(_per[i][0] for i in s); a = sum(_per[i][1] for i in s); return 1000*e/a if a else 0
+    _b = sorted(_dens(_rng.choice(_keys, len(_keys))) for _ in range(5000))
+    swe_lo, swe_hi = _b[125], _b[4874]
+    y_swe = -1.4
+    ax.axhline(-0.72, color="#CBD5E1", lw=1.3, ls="--", zorder=1)
+    ax.barh(y_swe, swe_pt, height=0.5, color=TEAL, alpha=0.9, zorder=3, edgecolor="white")
+    ax.errorbar(swe_pt, y_swe, xerr=[[swe_pt-swe_lo],[swe_hi-swe_pt]], fmt="none",
+                ecolor=INK, elinewidth=1.3, capsize=3.2, capthick=1.3, zorder=4)
+    ax.text(swe_hi+4, y_swe, f"{swe_pt:.1f}", va="center", ha="left", fontsize=9.2, color=TEAL, fontweight="bold")
+    ax.text(152, y_swe, "separate archetype: weak test grader, live Docker\n(not pooled with the LLM-judge rows above)",
+            fontsize=8.3, color=TEAL, ha="center", va="center", style="italic")
+
+    ax.set_yticks(list(y)+[y_swe])
+    ax.set_yticklabels([label[b] for b in order]+["SWE-bench\n(weak grader)"], fontsize=10.8)
+    ax.set_ylim(-2.0, 4.7)
     ax.set_xlabel("Scorer gameability index  —  oracle-witnessed exploit density (per 1,000 attempts)")
     ax.set_xlim(0,272)
     ax.grid(True, **GRIDX); ax.grid(False, axis="y")
-    # verification frontier annotation (in the empty band beside the zero rows)
-    ax.axhspan(y[3]-0.5, y[4]+0.5, color="#ECFDF5", zorder=0)
-    ax.text(150, (y[3]+y[4])/2, "independent-verification frontier\n0 exploits — code & arithmetic oracles\n(the judge can re-derive the answer)",
-            fontsize=9, color=GREEN, ha="center", va="center", fontweight="bold",
-            bbox=dict(boxstyle="round,pad=0.5", fc="white", ec=GREEN, lw=1.3))
+    ax.text(150, 0.5, "independent-verification frontier\n0 exploits — code & arithmetic oracles",
+            fontsize=8.8, color=GREEN, ha="center", va="center", fontweight="bold",
+            bbox=dict(boxstyle="round,pad=0.45", fc="white", ec=GREEN, lw=1.3))
     handles=[Line2D([0],[0],color=BLUE,lw=8,alpha=.88,label="L1 — metamorphic (fixed catalog)"),
              Line2D([0],[0],color=RED,lw=8,alpha=.88,label="L2 — adaptive search (budgeted)"),
+             Line2D([0],[0],color=TEAL,lw=8,alpha=.9,label="SWE-bench — weak test grader (live)"),
              Line2D([0],[0],color=INK,lw=1.3,marker="|",ms=9,label="95% bootstrap CI (5,000 resamples)")]
-    ax.legend(handles=handles, loc="center right", bbox_to_anchor=(1.0,0.50),
-              fontsize=8.8, frameon=True, framealpha=0.97, edgecolor="#D0D5DD")
+    ax.legend(handles=handles, loc="center right", bbox_to_anchor=(1.0,0.60),
+              fontsize=8.6, frameon=True, framealpha=0.97, edgecolor="#D0D5DD")
     ax.set_title("The living Scorer Gameability Index: gameability tracks the judge's ability to verify,\nnot the benchmark's difficulty",
                  fontsize=12.5, fontweight="bold", color=INK, loc="left", pad=12)
     fig.text(0.007,-0.02,f"Real claude-opus-5 judge, {JUDGE_ROUTE} · item-clustered bootstrap · each card content-addressed and recomputable offline",

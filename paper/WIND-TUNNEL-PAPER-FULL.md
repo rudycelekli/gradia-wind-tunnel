@@ -1229,7 +1229,11 @@ oracle) and arithmetic (GSM8K). GSM8K and HLE sit at opposite ends of gameabilit
 GSM8K being far the *easier* benchmark for models. Adaptive budget roughly doubles density on
 every leaking scorer and cracks the near-resistant key-match scorer (GPQA-Diamond 6.6→15.2)
 but opens no gap where none exists. Each bar is a content-addressed, self-verifying index card
-recomputable offline from the published `frames.ndjson`.
+recomputable offline from the published `frames.ndjson`. Below the dashed divider, **SWE-bench
+Verified appears as a separate teal bar** — the agentic weak-test-grader archetype measured live
+(49.4/1k, 95% CI [36.7, 62.8], item-clustered bootstrap over 100 instances); its density and CI
+are computed identically but kept as their own archetype and never pooled with the LLM-judge
+rows, for the reason given below.
 
 The CIs are the rigor the single-seed estimates lacked: MATH's exploitability is resolved
 well away from zero, GPQA's is marginal ([0.5, 16.2]), and GSM8K's resistance is tight at
