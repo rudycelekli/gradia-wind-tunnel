@@ -246,12 +246,12 @@ def fig_transfer():
     cb=fig.colorbar(im, ax=ax, fraction=0.046, pad=0.03)
     cb.set_label("exploit density (/1k)", fontsize=9)
     ax.set_xlabel("scorer architecture (what cue it rewards)", fontsize=10, labelpad=8)
-    fig.subplots_adjust(top=0.82)
+    fig.subplots_adjust(top=0.80, bottom=0.18)
     fig.text(0.09,0.955,"Gameability is a property of the reference-free paradigm, not one checkpoint",
              fontsize=12.5, fontweight="bold", color=INK)
     fig.text(0.09,0.905,"Every reference-free judge has some attack; independent verification is the paradigm-level defense.",
              fontsize=9.6, color=SLATE, style="italic")
-    fig.text(0.09,0.02,"Full attack catalog re-fired against structurally different scorers, 1,000 records each · cross-architecture, offline, recomputable",
+    fig.text(0.09,0.025,"Full attack catalog re-fired against structurally different scorers, 1,000 records each · cross-architecture, offline, recomputable",
              fontsize=7.9, color=SLATE)
     savefig(fig,"fig4_transfer_paradigm.png")
 
@@ -356,10 +356,10 @@ def fig_architecture():
     ax.text(0,70.2,"A closed loop over a deployed benchmark scorer: attack it, localize the cause in a witnessed world, repair it, re-attack — all on tamper-evident evidence.",
             fontsize=9.8, color=SLATE)
 
-    # ---- loop-back arrow across the very top ----
-    arrow((84,60.5),(16,60.5), color=GREEN, lw=2.6, rad=0.28)
-    ax.text(50,66.2,"patched scorer  θ$_{k+1}$  re-enters at L3   →   convergence measured (converge · plateau · relocate)",
-            ha="center", fontsize=9.6, color=GREEN, fontweight="bold", style="italic")
+    # ---- loop-back arrow (kept clear of the subtitle above and the panels below) ----
+    arrow((84,59),(16,59), color=GREEN, lw=2.6, rad=0.15)
+    ax.text(50,61.6,"patched scorer  θ$_{k+1}$  re-enters at L3   →   convergence measured",
+            ha="center", fontsize=9.4, color=GREEN, fontweight="bold", style="italic")
 
     # ---- three stage panels ----
     yP=30; hP=27
@@ -377,7 +377,7 @@ def fig_architecture():
             yy=ytop-i*3.3
             ax.text(x, yy, "•", fontsize=11, color=col, fontweight="bold")
             ax.text(x+1.6, yy, bold, fontsize=9.2, color=INK, fontweight="bold")
-            ax.text(x+1.6, yy-1.35, txt, fontsize=8.0, color=SLATE)
+            ax.text(x+1.6, yy-1.35, txt, fontsize=7.5, color=SLATE)
 
     lines(4.2, yP+hP-6.4, [
         ("Generator","controlled items + factor grid + oracle"),
@@ -391,8 +391,8 @@ def fig_architecture():
 
     lines(37.2, yP+hP-6.4, [
         ("Universe Fork",ENGINE_RUN),
-        ("Change ONE variable","evolution witness proves nothing else moved"),
-        ("Before/after roots","content-addressed, hash-chained occurrence"),
+        ("Change ONE variable","witness proves nothing else moved"),
+        ("Before/after roots","content-addressed + hash-chained"),
         ("Analyst","density · slice · spectrum · exploit-DNA"),
     ])
     ax.text(49, yP+2.0,"causal slice  —  or 'diffuse' (validated=false)",
@@ -418,17 +418,17 @@ def fig_architecture():
     panel(2, yS, 96, hS, "#F8FAFC", "#475569")
     ax.text(50, yS+hS-2.4,"EVIDENCE SPINE — every episode captured; the write-up asserts nothing, it derives everything",
             ha="center", fontsize=10, fontweight="bold", color="#334155")
-    spine=[("frames.ndjson","hash-chained episode rows"),
-           ("manifest.json","self-digested estimands + chain head"),
-           ("verify_bundle","re-derives every aggregate offline · fail-closed"),
-           ("anchor (OpenTimestamps)","prereg + digests → Bitcoin block inclusion")]
-    xs=[7,30,54,78]
+    spine=[("frames.ndjson","hash-chained rows"),
+           ("manifest.json","estimands + chain head"),
+           ("verify_bundle","re-derives all offline"),
+           ("anchor (OpenTimestamps)","prereg → Bitcoin block")]
+    xs=[5,29,54,77]
     for i,(b,s) in enumerate(spine):
-        ax.text(xs[i], yS+7.6, b, fontsize=9.2, fontweight="bold",
+        ax.text(xs[i], yS+7.6, b, fontsize=9.0, fontweight="bold",
                 color=AMBER if i==3 else "#334155")
-        ax.text(xs[i], yS+5.4, s, fontsize=7.6, color=SLATE)
+        ax.text(xs[i], yS+5.4, s, fontsize=7.3, color=SLATE)
         if i<3:
-            ax.text(xs[i]+21.5, yS+7.4,"→", fontsize=14, color=SLATE, ha="center")
+            ax.text((xs[i]+xs[i+1])/2, yS+7.4,"→", fontsize=13, color=SLATE, ha="center")
     ax.text(50, yS+1.4,"publicly timestamped & non-equivocating  ·  Regime 1 oracle-backed + Regime 2 oracle-less judge audit  ·  any third party recomputes every number",
             ha="center", fontsize=8.2, color=SLATE, style="italic")
 

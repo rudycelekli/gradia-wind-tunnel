@@ -15,7 +15,7 @@ t = SRC.read_text()
 
 # ---- 1. author frontmatter → anonymous, with a double-blind banner ----
 t = t.replace(
-    'author: "Rudy M. Celekli, Gradia Research"',
+    'author: "Rudy M. Celekli, Gradia Research · gradiahq.com"',
     'author: "Anonymous Author(s) — under double-blind review"')
 
 # insert a submission banner right after the frontmatter block (after the second '---')
@@ -51,12 +51,15 @@ tamper-evident and coverage-honest."""),
  # 1.4 whole block
  ("""### 1.4 Relation to prior work in this program
 
-This is the third of a program. **Interruptible Universes** contributed the witnessed,
-branchable universe we use here as a causal instrument; **Gradia Guard** contributed
-the tamper-evident evidence runtime that records every experiment; and **Conditionally
-Approved** contributed both the proof-bound benchmark methodology and the multi-judge
-instability finding (Fleiss' κ = 0.151) that motivates attacking the scorer directly.
-We are grateful to build on that foundation.""",
+This is the third work in a program on verifiable evaluation. **Interruptible Universes**
+contributed the witnessed, branchable universe we use here as a causal instrument;
+**Gradia Guard** (gradiahq.com) contributed the tamper-evident evidence runtime that records
+every experiment; and **Conditionally Approved** contributed both the proof-bound benchmark
+methodology and the multi-judge instability finding (Fleiss' κ = 0.151) that motivates
+attacking the scorer directly. Interruptible Universes and Conditionally Approved are
+archived together (Zenodo DOI [10.5281/zenodo.22087020](https://doi.org/10.5281/zenodo.22087020));
+Conditionally Approved is under review at ICLR 2027 (OpenReview `IrPdpUo7Rz`). We are grateful
+to build on that foundation.""",
   """### 1.4 Relation to prior work in this program
 
 This is the third work in a program on verifiable evaluation (all citations withheld to
@@ -123,12 +126,17 @@ for a, b in REPL:
 # ---- 4. regex catch-alls for any straggler whole-word names ----
 t = re.sub(r"\bGuard\b", "the evidence runtime", t)
 t = re.sub(r"\bgradia\b", "the engine", t, flags=re.I)
+# safety net: strip any self-identifying DOI / OpenReview id that survived a block edit
+t = re.sub(r"\[?10\.5281/zenodo\.\d+\]?(\(https?://doi\.org/10\.5281/zenodo\.\d+\))?",
+           "[citation withheld for review]", t)
+t = t.replace("IrPdpUo7Rz", "[withheld]")
 
 DST.write_text(t)
 
 # ---- 5. self-check: no identifying token may survive ----
 BAD = ["Gradia", "gradia", "Celekli", "Rudy", "Interruptible Universes",
-       "Conditionally Approved", "gradiahq", "rudycelekli", "Gradia Guard", " Guard"]
+       "Conditionally Approved", "gradiahq", "rudycelekli", "Gradia Guard", " Guard",
+       "zenodo", "IrPdpUo7Rz", "doi.org"]
 leftovers = []
 for tok in BAD:
     for i, line in enumerate(t.splitlines(), 1):
