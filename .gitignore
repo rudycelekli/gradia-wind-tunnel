@@ -11,3 +11,8 @@ build/
 .ruff_cache/
 .pytest_cache/
 results/
+
+# agent scratch
+.claude-flow/
+.swarm/
+.DS_Store

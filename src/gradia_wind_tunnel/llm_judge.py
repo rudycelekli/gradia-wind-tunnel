@@ -95,11 +95,20 @@ class AnthropicGuardGrader:
 
     def _urllib_transport(self, url: str, headers: dict, body: dict) -> dict:  # pragma: no cover
         import json as _json
+        import urllib.error
         import urllib.request
         data = _json.dumps(body).encode()
         req = urllib.request.Request(url, data=data, headers=headers, method="POST")
-        with urllib.request.urlopen(req, timeout=90) as resp:
-            return _json.loads(resp.read().decode())
+        try:
+            with urllib.request.urlopen(req, timeout=90) as resp:
+                return _json.loads(resp.read().decode())
+        except urllib.error.HTTPError as e:
+            try:  # surface the provider's error body so failures are diagnosable
+                detail = e.read().decode()[:500]
+            except Exception:
+                detail = ""
+            e.msg = f"{e.msg or ''} {detail}".strip()
+            raise
 
     def grade(self, question: str, answer: str, rubric: str) -> tuple[str, float]:
         if not self.capability:
@@ -124,16 +133,19 @@ class AnthropicGuardGrader:
         }
         import time as _time
         _last = None
-        _attempts = 7
+        _attempts = 10
         for _attempt in range(_attempts):
             try:
                 resp = self._transport(url, headers, body)
                 break
             except Exception as _e:            # transient: timeout / 429 / 5xx / network
                 _last = _e
+                _code = getattr(_e, "code", None)
+                if _code is not None and 400 <= _code < 500 and _code not in (408, 429):
+                    raise                      # permanent client error: retrying cannot help
                 if _attempt == _attempts - 1:
                     raise
-                _time.sleep(min(2 ** _attempt, 30))   # 1,2,4,8,16,30s -> ~11 min total budget/call
+                _time.sleep(min(2 ** _attempt, 60))   # 1,2,4,8,16,32,60,60,60s -> ~5 min budget/call; rides out sustained 529 overloads
         text = "".join(
             block.get("text", "") for block in resp.get("content", [])
             if block.get("type") == "text"

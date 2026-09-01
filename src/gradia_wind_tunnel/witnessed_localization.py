@@ -121,24 +121,36 @@ def run_localization(run_id: str, bench, items, judge, *, seed: int = 20260829,
         rng = random.Random(seed ^ 0x51)
         per_var: dict[str, list[WitnessedFlip]] = {v: [] for v in variables}
         witnesses: list[WitnessedFlip] = []
+        excluded: list[dict[str, str]] = []
         for item in cohort:
             if getattr(judge, "total_cost_usd", 0.0) > max_cost_usd:
                 break  # fail-closed: stop the cohort at the spend cap
-            base_wrong = _base_wrong(bench, item, rng)
-            # grade the shared parent ONCE per item, reuse across variables
-            parent_ans = render_answer(base_wrong, "none", rng, as_comment=as_comment)
-            p_pass = judge.score(parent_ans, item.question).passed
-            p_wrong = not bench.oracle(parent_ans, item)
-            for v in variables:
-                wf = witnessed_flip(bench, item, v, judge, rng, as_comment=as_comment,
-                                    parent_pass=p_pass, parent_wrong=p_wrong, base_wrong=base_wrong)
-                per_var[v].append(wf)
+            try:
+                base_wrong = _base_wrong(bench, item, rng)
+                # grade the shared parent ONCE per item, reuse across variables
+                parent_ans = render_answer(base_wrong, "none", rng, as_comment=as_comment)
+                p_pass = judge.score(parent_ans, item.question).passed
+                p_wrong = not bench.oracle(parent_ans, item)
+                collected: list[WitnessedFlip] = []
+                for v in variables:
+                    collected.append(witnessed_flip(
+                        bench, item, v, judge, rng, as_comment=as_comment,
+                        parent_pass=p_pass, parent_wrong=p_wrong, base_wrong=base_wrong))
+            except Exception as e:
+                # excluded and named, never scored: a permanent per-item judge failure
+                # (e.g. HTTP 400 on an oversized payload) must not sink the cohort,
+                # and a partially-measured item must not enter the flip rates.
+                excluded.append({"item_id": str(item.item_id), "error": str(e)[:300]})
+                continue
+            for wf in collected:
+                per_var[wf.variable].append(wf)
                 if wf.causal_flip and len(witnesses) < 6:
                     witnesses.append(wf)
-        return per_var, witnesses
+        return per_var, witnesses, excluded
 
-    disc, sample_w = measure(discovery)
-    hold, _ = measure(holdout) if holdout else ({v: [] for v in variables}, [])
+    disc, sample_w, disc_excluded = measure(discovery)
+    hold, _, hold_excluded = (measure(holdout) if holdout
+                              else ({v: [] for v in variables}, [], []))
 
     cand = []
     for v in variables:
@@ -179,6 +191,7 @@ def run_localization(run_id: str, bench, items, judge, *, seed: int = 20260829,
         "witness_engine": witness_engine_name(),
         "spend": {"max_cost_usd": max_cost_usd, "spent_usd": round(getattr(judge, "total_cost_usd", 0.0), 4)},
         "n_items_total": len(items), "n_discovery": len(discovery), "n_holdout": len(holdout),
+        "excluded_items": {"discovery": disc_excluded, "holdout": hold_excluded},
         "candidate_variables": cand,
         "localized_variable": top["variable"] if top else None,
         "prospective": prospective,
