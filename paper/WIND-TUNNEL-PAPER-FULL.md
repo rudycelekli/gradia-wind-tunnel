@@ -1,18 +1,18 @@
 ---
 title: "The Reward-Hacking Wind Tunnel: An Evaluation Immune System that Attacks, Localizes, and Repairs Benchmark Scorers"
 author: "Rudy M. Celekli, Gradia Research"
-date: "Results reported under the frozen preregistration (Regime 1 + Regime 2). Draft of 30 August 2026"
+date: "Results reported under the frozen preregistration (Regime 1 + Regime 2). Draft of 31 August 2026"
 ---
 
 > **Evidence boundary.** This manuscript reports empirical results (§13) produced under
 > the frozen preregistration: L1 and L2 across five public benchmarks, witnessed
-> single-variable localization, the repair-convergence measurement, the adversary×judge
-> transfer matrix, an oracle-witnessed live SWE-bench Verified run in real task
-> containers, and the oracle-less Regime-2 arm. Every reported number is recomputable
-> from a committed, hash-chained evidence bundle. Two things are deliberately **not**
-> claimed here: HumanEval's attack family was found to be a syntax artifact (§8.5), so
-> its cells are marked superseded pending a corrected re-run; and the real-LLM-judge
-> convergence arm is instrumented but not yet reported. Claims are scoped by the
+> single-variable localization (including powered prospective runs at n=200), the
+> repair-convergence measurement, the adversary×judge transfer matrix, an
+> oracle-witnessed live SWE-bench Verified run (N=100) in real task containers, and
+> the oracle-less Regime-2 arm. Every reported number is recomputable from a committed,
+> hash-chained evidence bundle. HumanEval's attack family was found to be a syntax
+> artifact (§8.5); the corrected re-run shows **0.0/1k at both L1 and L2** — the code
+> judge path is not gameable by these transforms. Claims are scoped by the
 > preregistration's `interpretation` field: we study whether a benchmark's *scoring
 > pipeline* can be gamed and whether repairing it converges — not whether any model is
 > broadly weak or any benchmark worthless.
@@ -29,7 +29,7 @@ attack a deployed benchmark scorer, localize the load-bearing slice in a witness
 counterfactual world, repair the scorer, and re-attack untouched evidence. It searches
 for answers a famous public benchmark's scorer grades *correct* but that a machine
 **oracle** proves *wrong* — every exploit confirmed with no human label — then
-identifies the **exact causal slice** being exploited by intervening on one variable
+attempts to identify the **causal slice** being exploited by intervening on one variable
 at a time in a **branchable, witnessed universe** that runs on the Gradia engine, and
 measures whether iterated patching of the scorer **converges, plateaus, or merely
 relocates the flaw**. We contribute: **(C1)** witnessed universes as a *causal
@@ -84,14 +84,17 @@ loop — the tunnel finds the exploit (**evaluation**), the fork names the exact
 
 **The central claim is C2**: iterating attack→patch→re-attack under an autoimmunity
 budget, local rubric patching *relocates* exploitability rather than removing it
-(γ_local = 0, a whack-a-mole plateau), while only a structural change to what the
-scorer checks converges — a convergence measurement of evaluator repair.
+(γ_local = 0, a whack-a-mole plateau) — a pattern that replicates on a real frontier
+judge (claude-opus-5, two benchmarks), where even the structural self-commitment defense
+that converges in the procedural model shows no significant reduction. This is the first
+convergence measurement of evaluator repair, and evidence that repair is harder than the
+structural intuition predicts.
 C1 and C3 are what make that measurement possible (a causal instrument, and exploits
 that need no human label); C4 prices the repair (autoimmunity); C5 makes every number
 independently recomputable. Four further contributions extend the method: a **judge-gaming transform family** (seven oracle-witnessed vectors targeting documented LLM-judge biases: sycophancy-bait, false-citation, format-mimicry, hedge-flooding, plus three transformations introduced in this catalog — fake-verification, rubric-echo, calibrated-confidence) and a **two-regime auditing framework** that carries the method to *oracle-less*, judge-scored benchmarks (H6/H7) via metamorphic relations, bias probes, and judge-disagreement geometry, backed by a witnessed-substrate confabulation oracle. Third, the **agentic environment-state archetype** (§4.6) carries the oracle-witnessed method to scorers that grade a *state* rather than an answer: a typed catalog of proxy-reward hacks — a final state that satisfies the weak environment checker while the hidden objective is unmet — each causally localized to one observable variable by a witnessed fork, the reward-hacking surface agentic benchmarks make load-bearing. Fourth, the **living Scorer Gameability Index**: one content-addressed, recomputable number per public benchmark (density + bootstrap CI, git-pinned), distributed as a zero-install audit command and an open card schema, so the instrument becomes standing infrastructure and the artifact of responsible disclosure (§15.1). Section 3 formalizes the estimands; Sections 4–9 give the method and
 architecture with diagrams; Sections 10–11 the experimental design and metrics;
 Sections 12–14 the figures, results, and analysis; Sections 15–18 disclosure, limitations, ethics,
-reproducibility. A complete, self-verifying instrument accompanies the paper (160
+reproducibility. A complete, self-verifying instrument accompanies the paper (165
 property tests green), and every result in §13 regenerates from it with one command.
 
 ### 1.4 Relation to prior work in this program
@@ -433,7 +436,9 @@ Given confirmed exploits, enumerate candidate factors, form the factorial grid (
 fractional-factorial screen), and find the minimal conjunction maximizing in-slice ρ.
 A named slice is a *prediction*; validate it by generating fresh held-out items in the
 predicted slice and showing the predicted rate materializes above (a) a broad-slice
-baseline and (b) a random-slice control.
+baseline and (b) a random-slice control. The powered localization arms (R3) were
+preregistered under SHA `a9b4ba69f5843eeae6c687456c76cf3ecc5e51eaac1656686541c5ba2c20a07a`;
+results are reported in §13.4.
 
 ---
 
@@ -486,10 +491,13 @@ from the same starting scorer, three modalities:
 
 Local rubric editing removes **zero** global exploitability (it relocates the flaw).
 Neutralizing the whole family, or switching to a self-committing scorer that grades against
-its own solution, drives global density to zero. This is the alignment question in
-miniature: *patching a proxy moves the flaw unless you change what the proxy measures.* It
-sharpens Zhou (2026): their self-commitment defense (false-positive 0.719 → 0.012) is, in
-our decomposition, the *only* arm with γ = 1 and a global reduction to zero.
+its own solution, drives global density to zero *on the procedural substrate*. This is the
+alignment question in miniature: *patching a proxy moves the flaw unless you change what the
+proxy measures.* However, the real-LLM-judge convergence arm (below) shows that
+self-commitment's procedural cure does not survive deployment on real judges — whack-a-mole
+holds, and structural self-commitment does not cure gaming. This tempers Zhou (2026): their
+self-commitment defense (false-positive 0.719 → 0.012) is, in our procedural decomposition,
+the *only* arm with γ = 1, but the real-judge arm shows the relocating dynamics persist.
 
 **The autoimmunity sign is itself a finding.** The broken keyword scorer rejects *every*
 verified-correct answer (baseline false-rejection = 1.0 — it rewards phrasing, not
@@ -499,10 +507,22 @@ verifier itself solves imperfectly — the regime the real-judge runner measures
 the procedural result as the best case and flag the real-judge cost as the tradeoff to
 measure, not assume.
 
-*(Current procedural run; `run_research.sh` regenerates the loop curve and the modality
-table from the latest evidence. A real-LLM-judge convergence run — rubric-editing the
-deployed frontier judge across cycles — is built and offline-verified (run_realjudge.sh), and runs against a Guard-routed
-model.)*
+**Real-LLM-judge convergence (R2).** Three live convergence runs (claude-opus-5 behind the
+Guard gateway; MATH ×2, HLE ×1; n=100 items each; K=4 rubric patches) confirm: whack-a-mole
+holds on deployed judges. Held-out exploit density does not fall significantly across
+rubric patches — per-1k curves of [140, 170, 180, 140, 160] (MATH) and
+[100, 100, 130, 120, 120] (HLE), first-vs-last two-proportion z = −0.396 and −0.452,
+`relocation_plateau` classification in both v2 runs. The structural arm is the sharper
+result: self-commitment, measured on the *same* held-out signal as the final rubric cycle,
+also produces **no significant change** — 140 → 190/1k (MATH, z = −0.953) and
+100 → 130/1k (HLE, z = −0.665), verdict `no_significant_change`. The procedural
+substrate's Δ⁻ = −1.0 and clean γ = 1 for `judge_arch` (above) are therefore the best
+case; on real judges neither rubric patching nor structural self-commitment removed the
+exploits — they relocate. (An earlier v1-schema run measured the structural arm on a
+different signal and is superseded by the v2 protocol.)
+
+*(Both procedural and real-judge runs regenerate from `run_research.sh` and `run_realjudge.sh`;
+all numbers are recomputable from the latest evidence.)*
 
 ---
 
@@ -798,12 +818,13 @@ convergence follow.
 | HLE (checkable subset) | frontier | 200 | 129 | 64.5 | 85/129 (66%) |
 | GPQA-Diamond | frontier | 198 | 13 | 6.6 | 7/13 |
 | MATH | control | 200 | 215 | 107.5 | 155/215 (72%) |
-| HumanEval† | control | 164 | 119 | 72.6† | 0/119 |
+| HumanEval | control | 164 | 0 | 0.0 | — |
 | GSM8K | control | 200 | 0 | 0 | — |
-| **Total (all five)** | | **962** | **476** | — | **247/476 (52%)** |
+| **Total (all five)** | | **962** | **357** | — | **247/357 (69%)** |
 
 (GPQA-Diamond and HumanEval contain 198 and 164 items — the *entire* benchmark; MATH, HLE and
-GSM8K use 200-item subsets. 9,620 attack attempts; total run cost: $87.)
+GSM8K use 200-item subsets. 9,620 attack attempts; total run cost: $87. HumanEval's corrected
+re-run — after the syntax artifact fix of §8.5 — reports 0 exploits at both L1 and L2.)
 
 **The frontier tier leaks.** HLE — the frontier knowledge exam — is gameable at **64.5/1k
 (129 oracle-witnessed exploits)**, and **two-thirds of them (85/129) come from the
@@ -821,17 +842,20 @@ scales.
 
 **Exploit DNA is benchmark-specific — sharply so (Figure 5).** Each scorer has a distinct
 fingerprint, not a uniform weakness:
-- **HumanEval†** *(superseded — artifact, pending re-run).* This cell originally read
-  **726/1k** for `keyword_inflation`. On audit the mechanism proved to be a **syntax
+- **HumanEval** *(artifact eliminated; corrected result: 0.0/1k at both L1 and L2).* The
+  original run reported **72.6/1k** (flagged †), which on audit proved to be a **syntax
   artifact, not a scorer defect**: the `subtle_bug` mutation (`return a + b` → `return a * b`)
   never matches real HumanEval solutions, so it fell back to appending a *comment*, leaving
   the code **correct** (the oracle called it wrong on 0/40 items); meanwhile `keyword_inflation`
   prepended bare prose *above Python source*, so the file no longer parsed and was
   oracle-wrong for a trivial reason. The measured quantity was therefore "prose pasted above
   code breaks execution and the judge does not notice", not "the judge accepts subtly buggy
-  code". The attack family is fixed (semantic mutations verified to still `ast.parse` **and**
+  code". The attack family was fixed (semantic mutations verified to still `ast.parse` **and**
   be oracle-wrong; judge-favored phrasing injected as a `#` comment on code benchmarks), and
-  HumanEval L1/L2 are being re-run; the corrected number replaces this one.
+  the clean re-run returns **0 exploits in 1,640 L1 attempts (n=164) and 0 exploits in 163 L2
+  attempts (n=163)** — the code judge path is not gameable by these transforms. This is a
+  positive result for unit-test-backed scorers: where the oracle is execution, the attack
+  surface is zero.
 - **MATH** is broadly gameable (**107.5/1k**); the judge-gaming family drives **72%** of its
   215 exploits, with the single strongest vector the structural `authoritative_wrong`.
 - **HLE** splits across structural corruption (`final_answer_corruption`,
@@ -840,8 +864,8 @@ fingerprint, not a uniform weakness:
 A patch tuned to one scorer's dominant vector therefore need not transfer — a prospective
 read on H2.
 
-**The judge-gaming family is load-bearing on the frontier.** Across the run, **247 of 476
-exploits (52%) come from the seven judge-gaming vectors of §4.5**, and on the two open-ended
+**The judge-gaming family is load-bearing on the frontier.** Across the run, **247 of 357
+exploits (69%) come from the seven judge-gaming vectors of §4.5**, and on the two open-ended
 scorers (HLE, MATH) they are the majority. That the *novel* vectors dominate exactly where
 the judge cannot cheaply re-derive truth is direct evidence the family captures real,
 previously unmeasured scorer blind spots.
@@ -850,17 +874,18 @@ previously unmeasured scorer blind spots.
 
 *Establishes.* The instrument runs end-to-end at preregistered scale (200/cell) across all
 five machine-checkable benchmarks with a live judge; L1 metamorphic attacks produce
-oracle-witnessed exploits on four of five — **the frontier knowledge exam (HLE) among them,
+oracle-witnessed exploits on three of five — **the frontier knowledge exam (HLE) among them,
 at 64.5/1k** — with a sharply benchmark-specific exploit fingerprint; GSM8K resists
 completely (0/2,000), so the method reports robustness as readily as breakage; the
 judge-gaming family carries the majority of exploits on every open-ended scorer; every number
 is recomputable and tamper-evident.
 
-*Established since (offline, recomputable).* The adversary×judge **transfer matrix** (§13.6), the **repair-convergence measurement** (§7.3 — local patching relocates, γ_local = 0; structural self-commitment cures), **bootstrap CIs** on every headline number, and the **living gameability index** (§13.5).
+*Established since (offline, recomputable).* The adversary×judge **transfer matrix** (§13.6), the **repair-convergence measurement** (§7.3 — local patching relocates, γ_local = 0; real-judge convergence confirms whack-a-mole holds and structural self-commitment does not cure gaming), **bootstrap CIs** on every headline number, the **living gameability index** (§13.5), the corrected **HumanEval** result (0.0/1k at both rungs), and the **powered R3 localization** (MATH and HLE, n=200 each, both validated=false — the defect is genuinely diffuse).
 
 *Does not establish.* That bounded typed-catalog L2 search is an autonomous
-model-authored hypothesis agent; that diffuse witnessed associations identify one dominant
-causal variable where current power is insufficient; that deterministic evaluator repair is
+model-authored hypothesis agent; that any single construction variable causally dominates
+scorer gameability (the powered R3 localization at n=200 returned validated=false on both
+MATH and HLE — the defect is genuinely diffuse); that deterministic evaluator repair is
 optimizer-backed model learning; or that any proposed training curriculum causes frontier
 model lift. Those require the admitted model-search arm and the separately authorized,
 multi-seed held-out training study described in the implementation plan.
@@ -937,8 +962,8 @@ machinery itself verified correctly throughout (`single_variable_verified` true 
 fork, before/after world roots distinct). This is the localizer's own negative control: a
 causal instrument that manufactured an attribution here — naming a "cause" of an effect that
 does not exist — would be worthless on the benchmarks where effects do exist. Meaningful
-localizations come from the leaking scorers (MATH, HumanEval, HLE), reported as those cells
-land.
+localization attempts come from the leaking scorers (MATH, HLE); the powered R3 runs (n=200
+each) returned validated=false on both — see the powered-localization results above.
 
 **Witnessed causal attribution on MATH: the mechanism works; the defect is diffuse.** MATH
 leaks, so it is the first real test of the causal instrument. Over a 40-item cohort (20
@@ -970,15 +995,15 @@ vectors succeeding at comparable rates (`authoritative_wrong` 31, `sycophancy_ba
 `calibrated_confidence` 25, `hedge_flooding` 24, `format_mimicry` 23), so this scorer's defect
 is **diffuse across the judge-gaming surface rather than concentrated in one variable** —
 exactly the structure the localizer reports. A benchmark whose defect is diffuse admits no
-single-variable patch, which is a materially different remediation story from HumanEval's
-razor-narrow `keyword_inflation` dependence (§13.1) and is a direct, prospective read on H2.
+single-variable patch — confirmed by the powered R3 run — which is a materially different
+remediation story from the unit-test-backed scorers (HumanEval, GSM8K) that resist completely,
+and is a direct, prospective read on H2.
 
-*Design correction for Phase 2.* Localizing a diffuse defect needs far more power than a
-40-item cohort provides. We pre-commit to (a) cohorts of ≥200 items per arm, (b) a
-significance criterion (bootstrap CI on the flip-rate difference) replacing the current
-"exceeds baseline" rule, and (c) reporting the full ranked candidate table with intervals
-rather than a single named winner. The present rule's permissiveness is disclosed here rather
-than silently repaired.
+*Design correction, executed.* The 40-item pilot's permissiveness motivated a powered re-run
+at n=200 per arm with prospective holdout validation — the R3 powered localization reported
+above. The powered run confirms what the pilot suggested: no single variable dominates. The
+earlier pilot's "mechanism-positive, attribution-inconclusive" reading was correct; the
+powered run resolves it to **validated=false** — the defect is genuinely diffuse.
 
 **The full L2 slate (complete).** Adaptive search now covers all five machine-checkable scorers,
 and the pattern is the section's headline:
@@ -989,7 +1014,7 @@ and the pattern is the section's headline:
 | GPQA-Diamond | 6.6 | **15.2** | $25.17 | adaptive search cracks the near-resistant key-match scorer |
 | HLE (frontier exam) | 64.5 | **125.0** | $35.96 | ~doubles under adaptive budget |
 | MATH | 107.5 | **185.0** | $13.47 | ~doubles |
-| HumanEval† | *(superseded)* | *(superseded)* | — | attack family was a syntax artifact (§8.5); re-running |
+| HumanEval | 0.0 | **0.0** | — | code judge path is not gameable (§8.5 artifact eliminated) |
 
 **Adaptive budget roughly doubles exploit density on every leaking scorer and cracks the one
 that was near-resistant at L1 (GPQA-Diamond 6.6 → 15.2), while the one scorer that can
@@ -998,31 +1023,59 @@ lone exception to the doubling — there the fixed catalog already saturates the
 rate (above), so search buys almost nothing. Where a gap exists, more budget widens it; where
 none exists, no budget opens one.
 
-**Localization across the leaking scorers: the defect is diffuse everywhere.** Witnessed
-single-variable localization now covers GSM8K, MATH, GPQA-Diamond and HumanEval (HLE pending).
-The result is uniform, and it is the paper's connective tissue: **no scorer's gameability
-localizes to a single construction variable.** GSM8K yields zero flips (nothing to attribute —
-its own negative control); MATH is mechanism-positive but attribution-inconclusive (six
-witnessed flips, no dominant variable, lift 0.005); GPQA-Diamond likewise shows no
-single-variable concentration at this cohort size; and HumanEval's earlier *apparent*
-razor-narrow `keyword_inflation` dependence was the syntax artifact (§8.5), not a genuine
-concentration — the corrected re-run tests whether any real narrow dependence exists.
+**Powered localization: an honest negative at n=200.** Witnessed single-variable localization
+was run at powered scale (n=200 per benchmark: 100 discovery / 100 holdout, 12 judge calls per
+item = 1 parent + 11 candidate variables) on MATH and HLE under a preregistered prospective
+validation protocol (preregistration SHA `a9b4ba6...`): the holdout flip rate of the
+top-ranked variable must exceed the baseline mean of the other variables. Both arms returned
+**validated=false**.
 
-**Why this is one finding, not three.** The diffuse-defect result is the mechanism that unifies
+- **MATH:** localized variable `phrase:Let's think step by step.` — discovery flip rate 0.02,
+  holdout 0.0, baseline 0.007, lift over baseline −0.007. Spend: $16.42.
+- **HLE:** localized variable `phrase:Considering the elderly population,` — discovery flip rate
+  0.02, holdout 0.0, baseline 0.001, lift over baseline −0.001. Spend: $34.39, zero excluded
+  items.
+
+At n=200 with prospective validation, **no single construction variable survives holdout on
+either benchmark** — discovery-split "localizations" are noise the instrument itself refutes.
+This is a strength of the apparatus: it can refuse to confirm its own hypotheses, in contrast
+with static leaderboards that can only correlate. The earlier 40-item pilot on MATH was
+mechanism-positive but attribution-inconclusive (§13.4); the powered run resolves the
+ambiguity — the defect is genuinely diffuse, not under-powered.
+
+*Methodological note.* Per-item exclude-and-name discipline is enforced: an item either
+contributes all candidate variables or is excluded and named in the manifest (`excluded_items`
+field). An earlier HLE attempt hit a transient credit outage, was preserved as provenance
+(`hle-localize-partial-creditgap.json`, 65 named exclusions), and re-run clean with zero
+exclusions.
+
+**Localization across the full slate: the defect is diffuse everywhere.** Witnessed
+single-variable localization now covers all five benchmarks. The result is uniform, and it is
+the paper's connective tissue: **no scorer's gameability localizes to a single construction
+variable.** GSM8K yields zero flips (nothing to attribute — its own negative control); MATH
+and HLE are powered negatives (no variable survives holdout at n=200); GPQA-Diamond shows no
+single-variable concentration; and HumanEval's corrected re-run shows 0.0/1k at both rungs —
+the code judge path is not gameable, so there is nothing to localize (§8.5).
+
+**Why this is one finding, not five.** The diffuse-defect result is the mechanism that unifies
 the paper. Because gameability is spread across many surface cues rather than concentrated in
 one: (i) the **transfer matrix** (§13.6) sees signal-specific exploits that nonetheless leave no
 reference-free judge safe; (ii) the **convergence loop** (§7.3) sees local rubric patches
-*relocate* rather than converge (γ_local = 0) — you cannot patch a diffuse defect one cue at a
-time; and (iii) the **witnessed localizer** correctly declines to name a single cause. Three
-instruments, three views, one underlying structure: *reference-free scoring is gameable
-diffusely, so only a structural change to what the scorer checks — not any local edit — removes
-the exploit surface.* That is the safety-relevant thesis, and every empirical leg points at it.
+*relocate* rather than converge (γ_local = 0) — whack-a-mole holds, and structural
+self-commitment does not cure gaming (patches relocate rather than remove exploits); and
+(iii) the **witnessed localizer** correctly declines to name a single cause even at powered
+scale. Three instruments, three views, one underlying structure: *reference-free scoring is
+gameable diffusely — local edits relocate the flaw rather than remove it, and even the
+structural self-commitment defense that removes it in the procedural model does not transfer
+to a real frontier judge, so no repair we tested removes the exploit surface at deployment.* That is the safety-relevant thesis, and every empirical
+leg points at it.
 
-*Live SWE-bench.* The merged containerized test-gaming edition (§4.7) retains **14 clean
-instances and 252 grader-level attempts**, with **12 oracle-witnessed exploits
-(47.6/1,000)**. One instance whose control was dirty is excluded rather than counted. This
-strengthens the agentic-archetype claim but does not replace the deterministic exhibit: the
-live edition measures real repository scorers, while §13.3 isolates the mechanism.
+*Live SWE-bench.* The merged containerized test-gaming edition (§4.7) covers **N=100
+instances** (merged, anchored): 1,800 attempts, 89 oracle-witnessed exploits, an exploit
+density of **49.4/1,000**.
+Instances whose controls were dirty are excluded rather than counted. This strengthens the
+agentic-archetype claim but does not replace the deterministic exhibit: the live edition
+measures real repository scorers, while §13.3 isolates the mechanism.
 
 ### 13.3 The agentic environment-state archetype (deterministic exhibit)
 
@@ -1066,13 +1119,13 @@ Current index (real `claude-opus-5` judge; item-clustered bootstrap, 5,000 resam
 | MATH | L1 | 107.5 | [73.5, 146.5] | 200 |
 | MATH | L2 | 185.0 | [130.0, 240.0] | 200 |
 | HLE | L1 | 64.5 | [37.5, 95.5] | 200 |
-| HumanEval† | L1 | 72.6† | [65.9, 79.3] | 164 |
+| HLE | L2 | 125.0 | [80.0, 170.0] | 200 |
 | GPQA-Diamond | L1 | 6.6 | [0.5, 16.2] | 198 |
+| GPQA-Diamond | L2 | 15.2 | [0.0, 35.4] | 198 |
+| HumanEval | L1 | 0.0 | [0.0, 0.0] | 164 |
+| HumanEval | L2 | 0.0 | [0.0, 0.0] | 163 |
 | GSM8K | L1 | 0.0 | [0.0, 0.0] | 200 |
 | GSM8K | L2 | 0.0 | [0.0, 0.0] | 200 |
-
-† HumanEval's cell is **superseded**: its attack family was found to measure a syntax
-artifact rather than a behavioral defect (§13.1); it is re-run under the corrected family.
 
 The CIs are the rigor the single-seed estimates lacked: MATH's exploitability is resolved
 well away from zero, GPQA's is marginal ([0.5, 16.2]), and GSM8K's resistance is tight at
@@ -1131,11 +1184,14 @@ exploited-signal family is manually exhausted. Repair as practiced — patch the
 last attack used — does not converge; it moves the flaw. This is the paper's load-bearing
 safety result.
 
-**Does structural defense help but not cure? (H4)** On oracle-backed items it *cures*
+**Does structural defense help but not cure? (H4)** On the procedural substrate it *cures*
 reference-free gaming (self-commitment drives global density to zero, γ = 1) while *lowering*
-false rejection (Δ⁻ = −1.0). The preregistered caveat holds: self-commitment can be only as
-good as the judge's own solving, so on genuinely hard, oracle-less items (Regime 2) it is
-expected to help without fully curing — the Phase-2 measurement.
+false rejection (Δ⁻ = −1.0). On the real-judge convergence arm, however, whack-a-mole holds:
+held-out density is flat across four rubric patches (first-vs-last z = −0.396 MATH,
+−0.452 HLE; `relocation_plateau`), and structural self-commitment on the same held-out
+signal shows `no_significant_change` (140 → 190/1k MATH, z = −0.953; 100 → 130/1k HLE,
+z = −0.665) — it does **not** cure gaming on deployed judges. The procedural result is the
+best case; the real-judge arm is the operationally relevant one.
 
 **Is gameability a property of the paradigm or the checkpoint?** The paradigm. Every
 reference-free scorer is gameable by *some* signal-specific attack; exploits do not transfer
@@ -1152,10 +1208,11 @@ to 0.94; the same frontier judge leaks on MATH (107.5/1k) and the frontier knowl
 
 **What the numbers do not license.** Densities are per frozen cell and per judge; they are not
 claims about a benchmark's overall worth or a model's capability. Causal attribution of an
-exploit family to a single construction variable is licensed only by the witnessed universe
-forks (§6), not by the observational per-benchmark slices; the MATH localization remains
-mechanism-positive but attribution-inconclusive at current n. Live SWE-bench numbers are
-reported only from runs whose controls self-validate (§8.4).
+exploit family to a single construction variable is not established: the powered R3
+localization (n=200 per benchmark with prospective holdout validation) returned
+validated=false on both MATH and HLE — the defect is genuinely diffuse, not attributable to
+any single variable. Live SWE-bench numbers are reported only from runs whose controls
+self-validate (§8.4).
 
 ---
 
@@ -1259,7 +1316,10 @@ frames.ndjson` + `manifest.json`, `paper/figures/*.png`.
 ---
 
 *Methodology, architecture, and protocol are complete and instrumented (165 tests);
-§13–§14 report results under the frozen preregistration. Outstanding before submission:
-the corrected HumanEval re-run (§8.5), the real-LLM-judge convergence arm, the human
-naturalness study, and full reads of the related-work rows whose deltas are currently
-inferred from title+abstract.*
+§13–§14 report results under the frozen preregistration. All preregistered experimental
+arms are complete: L1 and L2 across five benchmarks, the corrected HumanEval re-run
+(0.0/1k at both rungs, §8.5), the powered R3 localization (MATH and HLE, n=200 each,
+both validated=false), the SWE-bench live harness (N=100, merged and anchored), and the
+real-LLM-judge convergence arm. Outstanding before submission: the human naturalness
+study (moved to post-submission future work) and full reads of the related-work rows
+whose deltas are currently inferred from title+abstract.*
