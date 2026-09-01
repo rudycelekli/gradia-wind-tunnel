@@ -353,6 +353,27 @@ Docker executor runs the same catalog on real task images for live per-instance 
 
 ## 5. System architecture
 
+![Figure 1](figures/fig0_architecture.png)
+
+**Figure 1 — How the instrument works.** The Wind Tunnel is a *closed loop* over a
+deployed benchmark scorer, in three stages over a tamper-evident evidence spine.
+**① Attack:** a Generator emits controlled items with a factor grid and a deterministic
+oracle; an Adversary applies truth-breaking transforms across rungs L0–L3 under a
+naturalness screen and a budget; the Oracle confirms wrongness with no human; the Judge
+Bank scores. The unit of measurement is an **exploit** — a judge PASS on an
+oracle-WRONG answer, a confirmed defect at zero labeling cost. **② Localize:** the same
+exploit is re-run inside a witnessed Universe Fork on the `gradia_universes` engine that
+changes exactly one variable and returns content-addressed before/after world roots
+proving nothing else moved — turning "which slice is exploited?" from a correlation into
+an identified interaction, or (as we find) reporting the defect as *diffuse* when no
+single variable survives. **③ Repair & re-attack:** a Patcher synthesizes a stronger
+scorer under an autoimmunity budget, reports closure Δ⁺ and generalization γ, and the
+patched scorer re-enters the adversary at L3 so convergence is *measured*, not assumed —
+the loop-back arrow at the top. Every episode drops into the **evidence spine**
+(`frames.ndjson` → `manifest.json` → `verify_bundle` → public anchor), so the write-up
+asserts nothing and derives everything, and any third party recomputes every number
+offline. The rest of this section gives the same architecture as typed service contracts.
+
 Seven services with typed contracts, each independently testable and Guard-instrumented.
 
 ```mermaid
@@ -523,6 +544,23 @@ different signal and is superseded by the v2 protocol.)
 
 *(Both procedural and real-judge runs regenerate from `run_research.sh` and `run_realjudge.sh`;
 all numbers are recomputable from the latest evidence.)*
+
+![Figure 2](figures/fig2_convergence.png)
+
+**Figure 2 — Repair relocates, it does not converge; the procedural cure does not survive
+on a real judge.** *Panel A (procedural substrate, keyword scorer, K=5):* held-out exploit
+density measured after each local rubric patch is flat at 666.7/1k for four cycles before
+the favored-phrase family is finally exhausted — the patch generalizes *nothing* to the
+held-out family (γ_local = 0.00, classification `relocation_plateau`). *Panel B (one patch,
+three modalities):* only a change to *what the scorer checks* collapses global
+exploitability — `curriculum_retrain` (whole family) and `judge_arch` (self-commitment)
+drive post-patch global density to 0 (γ = 1), while local `rubric_edit` leaves it at
+666.7 (γ = 0). *Panel C (real frontier judge, claude-opus-5, n=100/cycle):* on deployed
+judges the whack-a-mole holds — held-out density is statistically flat across four rubric
+patches (MATH first-vs-last z = −0.40; HLE z = −0.45; `relocation_plateau` in both), and
+the structural self-commitment arm (◆), measured on the *same* held-out signal as the
+final rubric cycle, also shows `no_significant_change` (MATH 140→190/1k, z = −0.95;
+HLE 100→130/1k, z = −0.67). The procedural cure is the best case; it does not transfer.
 
 ---
 
@@ -777,23 +815,32 @@ All are recomputable offline by `wind-tunnel-verify` from the committed evidence
 
 ---
 
-## 12. Figures and tables plan
+## 12. Figures and tables
 
-- **Fig 1** — the loop schematic (§5).
-- **Fig 2** — the causal-slice reveal: factorial heatmap + the prospective held-out
-  cohort hitting the predicted rate (the Universes-team figure).
-- **Fig 3** — convergence curves: ρ_heldout vs. patch cycle, one line per architecture,
-  annotated with the class.
-- **Fig 4** — the autoimmunity Pareto frontier: Δ⁺ vs. Δ⁻, one point per patch.
-- **Fig 5** — the exploitability spectrum per benchmark (small multiples).
-- **Fig 6** — the agentic reward-hack specificity matrix: five hack vectors × five weak-checker archetypes, the diagonal 'exploit DNA' (§4.6), from the agent-env bundle.
-- **Table 1** — adversary × judge transfer matrix.
-- **Table 2** — architecture per-dollar (density, γ, cost; incl. self-commitment arm).
-- **Table 3** — named-benchmark breakage summary + disclosure status + maintainer
-  responses.
+Every figure in this paper is generated from the committed evidence JSONs by
+`paper/make_paper_figures.py` (one command, no hand-entered numbers), so the figures are as
+recomputable as the tables. Each is placed in the section that discusses it; this is the index.
 
-The repository's `figures.py` generates Fig 1/2/3 from a run; captions state whether a
-figure is illustrative (offline) or empirical (a real run).
+| # | Figure | Section | What it shows |
+|---|---|---|---|
+| 1 | Architecture / how the instrument works | §5 | the closed attack→localize→repair loop over the evidence spine |
+| 2 | Convergence | §7.3 | procedural cure (γ=1) vs. real-judge whack-a-mole (relocation_plateau, no_significant_change) |
+| 3 | Diffuse localization | §13.4 | powered R3 (n=200): top variable collapses on held-out, `validated=false` both benchmarks |
+| 4 | SWE-bench live | §13.4 | live per-weak-grader density on 100 containers; strong oracle catches all; controls clean |
+| 5 | Agentic exploit-DNA | §13.3 | 5×5 clean diagonal — each reward-hack games exactly its target checker |
+| 6 | Scorer Gameability Index | §13.5 | L1/L2 density + bootstrap CIs per benchmark; the independent-verification frontier at 0 |
+| 7 | Transfer / paradigm | §13.6 | every reference-free judge leaks; independent verification passes none |
+
+**Tables.** Table R1 — L1 exploit density at 200/cell (§13.1); the L2 slate and L1-vs-L2
+crack-rate tables (§13.4); the convergence modality contrast (§7.3); the transform and
+reward-hack catalogs (§4.2, §4.5, §4.6, §4.7); the Gradia integration map (§9); the metrics
+catalog (§11); the gameability-index table (§13.5). The adversary×judge transfer matrix is
+Figure 7; the architecture per-dollar summary is the modality-contrast table in §7.3. A
+named-benchmark breakage + disclosure-status table is produced at coordinated-disclosure time
+(§15) and is intentionally not pre-published here.
+
+Captions state whether each figure is illustrative (offline) or empirical (a real run); all
+seven above are empirical, drawn from the frozen-preregistration runs of §13.
 
 ---
 
@@ -840,7 +887,7 @@ truth and leaks. **Scorer gameability tracks the judge's ability to independentl
 not the benchmark's difficulty for models** — GSM8K and HLE sit at opposite ends of both
 scales.
 
-**Exploit DNA is benchmark-specific — sharply so (Figure 5).** Each scorer has a distinct
+**Exploit DNA is benchmark-specific — sharply so (Figure 6).** Each scorer has a distinct
 fingerprint, not a uniform weakness:
 - **HumanEval** *(artifact eliminated; corrected result: 0.0/1k at both L1 and L2).* The
   original run reported **72.6/1k** (flagged †), which on audit proved to be a **syntax
@@ -1043,6 +1090,18 @@ with static leaderboards that can only correlate. The earlier 40-item pilot on M
 mechanism-positive but attribution-inconclusive (§13.4); the powered run resolves the
 ambiguity — the defect is genuinely diffuse, not under-powered.
 
+![Figure 3](figures/fig5_diffuse_localization.png)
+
+**Figure 3 — The defect is diffuse: no construction variable survives held-out validation
+at powered scale.** For each benchmark (n=200, split 100 discovery / 100 held-out), the
+variable the localizer *picks* on the discovery split (colored bars) collapses on the
+held-out split (grey): the top-ranked variable's held-out lift over the baseline of the
+other variables is −0.007 (MATH) and −0.001 (HLE), so both arms return `validated=false`.
+Every fork is witnessed (`single_variable_verified=true`, distinct before/after world
+roots); the negative is therefore a genuine property of the scorer, not an instrument
+failure. A causal instrument that can refuse to confirm its own hypothesis is doing exactly
+what a static leaderboard cannot.
+
 *Methodological note.* Per-item exclude-and-name discipline is enforced: an item either
 contributes all candidate variables or is excluded and named in the manifest (`excluded_items`
 field). An earlier HLE attempt hit a transient credit outage, was preserved as provenance
@@ -1077,6 +1136,21 @@ Instances whose controls were dirty are excluded rather than counted. This stren
 agentic-archetype claim but does not replace the deterministic exhibit: the live edition
 measures real repository scorers, while §13.3 isolates the mechanism.
 
+![Figure 4](figures/fig3_swe_live.png)
+
+**Figure 4 — SWE-bench Verified, live in Docker: every weak grader leaks, the real
+hidden-suite oracle leaks nothing.** Live exploit density per weak-grader archetype across
+100 real task containers (one execution per (instance, patch) read through three proxy
+lenses). The present-tests grader (`test_skip_injection`, 150/1k) and the exit-code grader
+(`exit_zero_wrapper`, 143.3/1k) leak heavily; `assertion_defang` trips a grader only once
+(3.3/1k) and `public_subset_gaming` not at all in the wild. The **strong oracle** — the
+official harness run on the dataset's *restored* hidden suite — catches every attack (0
+exploits), and both controls stay clean (`gold_fix` 0/1k, `no_op` 0/1k), so the run
+self-validates. The lesson mirrors the answer-graded slate: a scorer that runs the real
+hidden objective cannot be gamed by these shortcuts; every weak proxy that reads the tree
+"as the patch left it" leaks. (One instance excluded for a dirty control, named in the
+manifest. Live-vs-offline `prediction_agreement` is reported per §4.7, not hidden.)
+
 ### 13.3 The agentic environment-state archetype (deterministic exhibit)
 
 *Scope.* A constructive result, not a stochastic measurement: the reward-hack catalog of
@@ -1094,6 +1168,18 @@ repo's built-in witness engine (before/after roots recompute; the occurrence cha
 tamper-evident). This exhibits the archetype end-to-end — proxy-reward hacking, oracle-
 witnessed, and causally localized to one variable — with no answer key and no model in the
 loop.
+
+![Figure 5](figures/fig6_agentic_dna.png)
+
+**Figure 5 — Agentic "exploit DNA": each reward-hack games exactly its target checker and
+no other.** The five typed reward-hack vectors (rows) against the five weak-checker
+archetypes (columns) form a clean diagonal: `sentinel_write` games only the file-marker
+checker, `test_deletion` only the no-failures checker, and so on — 200/1k on the matched
+cell, zero everywhere off it (100 oracle-witnessed exploits over 700 attempts; both
+controls at 0). Every hack is witnessed-localized to the single observable variable it
+manipulates (`all_single_variable_verified=true`, `all_causal_flips=true`). Each weak
+checker therefore has one dominant reward-hack — the agentic mirror of the answer-graded
+finding that a scorer's blind spot is specific, not uniform.
 
 *Honest scope.* This is a controlled constructive demonstration (like the transform
 catalog of §4.2): it establishes the archetype, the typed catalog, and the witnessed
@@ -1127,6 +1213,21 @@ Current index (real `claude-opus-5` judge; item-clustered bootstrap, 5,000 resam
 | GSM8K | L1 | 0.0 | [0.0, 0.0] | 200 |
 | GSM8K | L2 | 0.0 | [0.0, 0.0] | 200 |
 
+![Figure 6](figures/fig1_gameability_index.png)
+
+**Figure 6 — The living Scorer Gameability Index: gameability tracks the judge's ability
+to verify, not the benchmark's difficulty.** Oracle-witnessed exploit density per benchmark
+at L1 (metamorphic) and L2 (adaptive search), with 95% item-clustered bootstrap CIs (5,000
+resamples), real `claude-opus-5` judge. The ordering is mechanistic, not difficulty-driven:
+the open-ended scorers the judge cannot cheaply re-derive (MATH 107.5→185.0/1k, the frontier
+exam HLE 64.5→125.0/1k) leak, while the scorers that *can* independently verify their answer
+sit on the **independent-verification frontier at exactly zero** — code (HumanEval, execution
+oracle) and arithmetic (GSM8K). GSM8K and HLE sit at opposite ends of gameability despite
+GSM8K being far the *easier* benchmark for models. Adaptive budget roughly doubles density on
+every leaking scorer and cracks the near-resistant key-match scorer (GPQA-Diamond 6.6→15.2)
+but opens no gap where none exists. Each bar is a content-addressed, self-verifying index card
+recomputable offline from the published `frames.ndjson`.
+
 The CIs are the rigor the single-seed estimates lacked: MATH's exploitability is resolved
 well away from zero, GPQA's is marginal ([0.5, 16.2]), and GSM8K's resistance is tight at
 zero. The index is computed by one command (`gradia-wind-tunnel index`) and re-derives
@@ -1150,6 +1251,19 @@ benchmarks (1,000 records each). Two facts hold on every benchmark:
   defense.** Every reference-free judge has *some* attack (deliberation ~100/1k, verification
   ~515/1k, permissive ~590/1k), while the independent verifier passes **zero** of the
   wrong-by-construction attacks.
+
+![Figure 7](figures/fig4_transfer_paradigm.png)
+
+**Figure 7 — Gameability is a property of the reference-free paradigm, not one checkpoint.**
+Exploit density (per 1k) of the full attack catalog re-fired against four structurally
+different scorers (columns) across four benchmarks (rows), 1,000 records each. Every
+reference-free judge leaks — a permissive union scorer worst (~590/1k), a
+verification/rigor-rewarding scorer next (~515/1k), a deliberation-rewarding scorer least
+(~100/1k) — and exploits are *signal-specific*: an attack that fools one cue rarely
+transfers to a judge rewarding a different cue. Only the **independent verifier** (green
+column), which passes solely oracle-correct answers, resists every attack at zero. This is
+why patching one signal invites relocation (Figure 2): a different reference-free surface is
+gamed by a different family, so only changing *what is checked* escapes the game.
 
 "LLM judges are gameable" is thus a claim about the reference-free *paradigm*, not one
 checkpoint — corroborating Zhou (2026)'s cross-family transfer (Qwen/Llama/Gemma) at the
@@ -1300,8 +1414,11 @@ window), analysis_blind_gates, responsible_disclosure, preregistration_sha256.
 
 `prereg-freeze` / `prereg-verify`; `demo`; `run` (full study + self-verifying report);
 `suite --benchmark <id> [--real] [--live]` (per-benchmark evidence bundle); `verify` /
-`verify-report`; `verify-bundle BUNDLE_DIR` (offline derivation of every frames/manifest aggregate); `figures`; `suite --rung L2` (adaptive search); `localize` (witnessed single-variable causal localization); `regime2` (oracle-less audit); `agentenv` (agentic reward-hacking archetype); `swebench-check` (SWE-bench readiness); `swebench-attacks` (SWE test-gaming catalog, offline); `swebench-live` (LIVE SWE run in real task containers, needs Docker). Artifacts: `preregistrations/*.json`, `results/<run>/
-frames.ndjson` + `manifest.json`, `paper/figures/*.png`.
+`verify-report`; `verify-bundle BUNDLE_DIR` (offline derivation of every frames/manifest aggregate); `figures`; `suite --rung L2` (adaptive search); `localize` (witnessed single-variable causal localization); `regime2` (oracle-less audit); `agentenv` (agentic reward-hacking archetype); `swebench-check` (SWE-bench readiness); `swebench-attacks` (SWE test-gaming catalog, offline); `swebench-live` (LIVE SWE run in real task containers, needs Docker). `index` (recompute the
+living Scorer Gameability Index cards); `anchor` (public timestamp anchor over the evidence).
+Artifacts: `preregistrations/*.json`, `results/<run>/frames.ndjson` + `manifest.json`,
+`results/anchors/*.ots`; the paper's figures regenerate from the committed evidence with
+`python paper/make_paper_figures.py` → `paper/figures/*.png`.
 
 ## Appendix D — hypotheses (directions pre-committed)
 
