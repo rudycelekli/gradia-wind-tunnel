@@ -15,9 +15,14 @@ from matplotlib.lines import Line2D
 import numpy as np
 
 # repo-relative: this file lives in paper/, evidence in ../results, figures to ./figures
+# GWT_ANON=1 regenerates the two engine-naming figures with neutral labels into figures/anon/
+ANON = os.environ.get("GWT_ANON") == "1"
 ROOT = Path(__file__).resolve().parent.parent
 RES = ROOT / "results"
-OUT = ROOT / "paper" / "figures"; OUT.mkdir(parents=True, exist_ok=True)
+OUT = ROOT / "paper" / "figures" / ("anon" if ANON else ""); OUT.mkdir(parents=True, exist_ok=True)
+ENGINE = "witnessed-world\nengine" if ANON else "gradia_universes\nWorld engine"
+ENGINE_RUN = "runs on the witnessed-world engine" if ANON else "runs on the gradia_universes World engine"
+JUDGE_ROUTE = "gateway-routed" if ANON else "Guard-routed"
 
 # ---- publication theme -------------------------------------------------
 plt.rcParams.update({
@@ -89,7 +94,7 @@ def fig_gameability():
               fontsize=8.8, frameon=True, framealpha=0.97, edgecolor="#D0D5DD")
     ax.set_title("The living Scorer Gameability Index: gameability tracks the judge's ability to verify,\nnot the benchmark's difficulty",
                  fontsize=12.5, fontweight="bold", color=INK, loc="left", pad=12)
-    fig.text(0.007,-0.02,"Real claude-opus-5 judge, Guard-routed · item-clustered bootstrap · each card content-addressed and recomputable offline",
+    fig.text(0.007,-0.02,f"Real claude-opus-5 judge, {JUDGE_ROUTE} · item-clustered bootstrap · each card content-addressed and recomputable offline",
              fontsize=8, color=SLATE)
     savefig(fig,"fig1_gameability_index.png")
 
@@ -385,7 +390,7 @@ def fig_architecture():
             bbox=dict(boxstyle="round,pad=0.35", fc="#FEF2F2", ec=RED, lw=1.2))
 
     lines(37.2, yP+hP-6.4, [
-        ("Universe Fork","runs on the gradia_universes World engine"),
+        ("Universe Fork",ENGINE_RUN),
         ("Change ONE variable","evolution witness proves nothing else moved"),
         ("Before/after roots","content-addressed, hash-chained occurrence"),
         ("Analyst","density · slice · spectrum · exploit-DNA"),

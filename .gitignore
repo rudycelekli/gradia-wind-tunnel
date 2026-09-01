@@ -16,3 +16,9 @@ results/
 .claude-flow/
 .swarm/
 .DS_Store
+
+# PDF build artifacts
+paper/figures/_mermaid/
+paper/_pp.json
+paper/_header.tex
+paper/*.tmp.md
