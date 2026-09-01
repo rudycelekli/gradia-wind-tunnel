@@ -36,7 +36,7 @@ VERIFICATION_SIGNALS = (
 )
 
 
-def _judge_bank() -> dict:
+def _judge_bank() -> dict[str, LLMJudge]:
     def J(name, favored):
         j = LLMJudge(SimulatedGraderProvider(favored=tuple(favored)))
         j.name = name
@@ -69,7 +69,7 @@ def run_transfer(benchmark_ids, *, seed: int = 20260830, limit: int = 100) -> di
             per_bench[bid] = {"error": f"{type(e).__name__}: {str(e)[:120]}"}
             continue
         rng = random.Random(seed)
-        recs = []
+        recs: list[dict[str, Any]] = []
         for item in items:
             for atk in _attacks_for(bench, item, rng):
                 ow = not bench.oracle(atk.answer_text, item)
@@ -82,14 +82,14 @@ def run_transfer(benchmark_ids, *, seed: int = 20260830, limit: int = 100) -> di
                 for jn in jnames}
         # attack x judge (which attack fools which judge, per-1000 over all records)
         attacks = sorted({r["attack"] for r in recs})
-        axj = {}
+        axj: dict[str, dict[str, float]] = {}
         for a in attacks:
             ra = [r for r in recs if r["attack"] == a]
             na = len(ra) or 1
             axj[a] = {jn: round(1000.0 * sum(1 for r in ra if r["oracle_wrong"] and r["v"][jn]) / na, 1)
                       for jn in jnames}
         # judge x judge transfer: of exploits under src, fraction also exploits under dst
-        tm = {}
+        tm: dict[str, dict[str, float | None]] = {}
         for src in jnames:
             src_ex = [r for r in recs if r["oracle_wrong"] and r["v"][src]]
             ns = len(src_ex)

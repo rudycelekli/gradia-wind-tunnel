@@ -17,7 +17,7 @@ platform capability; it calls the existing engine.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 

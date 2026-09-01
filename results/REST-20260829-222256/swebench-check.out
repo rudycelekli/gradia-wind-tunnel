@@ -1,0 +1,26 @@
+/opt/anaconda3/lib/python3.13/site-packages/nibabel/optpkg.py:104: UserWarning: A NumPy version >=1.23.5 and <2.3.0 is required for this version of SciPy (detected version 2.5.1)
+  pkg = __import__(name, fromlist=fromlist)
+{
+  "executor": {
+    "local_docker": true,
+    "docker": {
+      "cli": true,
+      "daemon": true,
+      "server_version": "29.7.2"
+    },
+    "gradia_substrate": false,
+    "any_executor": true,
+    "note": "SWE-bench execution can run on local Docker or on Gradia's Firecracker/AgentENV substrate; bind one before a real run."
+  },
+  "swebench_package": true,
+  "dataset_access": true,
+  "sample_instance": {
+    "instance_id": "astropy__astropy-12907",
+    "repo": "astropy/astropy",
+    "n_fail_to_pass": 2,
+    "n_pass_to_pass": 13,
+    "n_public_subset": 4
+  },
+  "ready_to_execute": true,
+  "next_step": "READY: run gold_patch_smoke() to prove the oracle, then the test-gaming exploit sweep"
+}

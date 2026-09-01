@@ -19,7 +19,6 @@ GPQA, and HumanEval have real oracles here; their attack-transform catalogs
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
 
 from .contracts import TARGET_BENCHMARKS
 from .items import Item, FINAL_RE
@@ -166,7 +165,6 @@ def humaneval_oracle(completion: str, test_program: str, entry_point: str,
     import subprocess
     import sys
     import tempfile
-    import textwrap
     program = f"{completion}\n\n{test_program}\n\ncheck({entry_point})\n"
     with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False) as f:
         f.write(program)

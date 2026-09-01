@@ -77,7 +77,7 @@ def run_convergence_report(items, gold_by_question, *, seed: int = 20260830,
     conv = run_convergence(items, "rubric_edit_loop", gold_by_question, seed, K=K,
                            autoimmunity_budget=autoimmunity_budget)
     curve = [round(_family_density(items, base, phrases[0], seed), 1)] + [round(x, 1) for x in conv.heldout_curve]
-    per_cycle = []
+    per_cycle: list[dict[str, Any]] = []
     for c in conv.cycles:
         p = c.patch
         per_cycle.append({
@@ -88,9 +88,17 @@ def run_convergence_report(items, gold_by_question, *, seed: int = 20260830,
             "generalization_gamma": (p.generalization_gamma if p else None),
             "accepted": (p.accepted if p else None),
         })
-    live = [c["generalization_gamma"] for c in per_cycle
-            if c["generalization_gamma"] is not None and c["closure_delta_per_1000"]
-            and c["heldout_density_per_1000"] > 1.0]
+    live: list[float] = []
+    for cycle in per_cycle:
+        gamma = cycle["generalization_gamma"]
+        heldout = cycle["heldout_density_per_1000"]
+        if (
+            isinstance(gamma, (int, float))
+            and cycle["closure_delta_per_1000"]
+            and isinstance(heldout, (int, float))
+            and heldout > 1.0
+        ):
+            live.append(float(gamma))
     gamma_local = round(sum(live) / len(live), 3) if live else 0.0
     classification = _classify(curve)
 

@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import importlib
 from dataclasses import dataclass
-from typing import Callable
+from typing import TypedDict
 
 
 @dataclass(frozen=True)
@@ -28,6 +28,22 @@ class GradiaBinding:
     module_probe: str | None      # importable module that proves availability
     role: str                     # what the tool does for this component
     fallback: str                 # standalone behavior when the tool is absent
+
+
+class GradiaBindingStatus(TypedDict):
+    component: str
+    gradia_tool: str
+    available: bool
+    role: str
+    fallback: str
+
+
+class GradiaStackStatus(TypedDict):
+    bindings: list[GradiaBindingStatus]
+    wired: int
+    total: int
+    standalone_runnable: bool
+    note: str
 
 
 # The authoritative map. Order = the pipeline order.
@@ -87,9 +103,9 @@ def _importable(module: str | None) -> bool:
         return False
 
 
-def gradia_stack_status() -> dict[str, object]:
+def gradia_stack_status() -> GradiaStackStatus:
     """Report which Gradia tools are wired in this environment."""
-    rows = []
+    rows: list[GradiaBindingStatus] = []
     for b in GRADIA_BINDINGS:
         rows.append({
             "component": b.component,
@@ -117,6 +133,6 @@ def platform_validation_table() -> str:
     status = gradia_stack_status()
     lines = ["| Wind Tunnel component | Gradia tool | Role | Standalone fallback |",
              "|---|---|---|---|"]
-    for r in status["bindings"]:  # type: ignore[index]
+    for r in status["bindings"]:
         lines.append(f"| {r['component']} | {r['gradia_tool']} | {r['role']} | {r['fallback']} |")
     return "\n".join(lines)

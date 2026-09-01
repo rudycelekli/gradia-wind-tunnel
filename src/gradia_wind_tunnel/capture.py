@@ -167,3 +167,43 @@ def verify_bundle(frames_path: Path, manifest: dict[str, Any]) -> dict[str, Any]
             and self_ok
         ),
     }
+
+
+def verify_bundle_tree(results_dir: Path) -> dict[str, Any]:
+    """Verify every committed Proof Pack under ``results_dir``.
+
+    This is the release gate behind ``verify-release``. A repository is not
+    reproducible when only a hand-picked example verifies; every directory that
+    publishes both ``frames.ndjson`` and ``manifest.json`` must replay cleanly.
+    """
+    bundles: list[dict[str, Any]] = []
+    for manifest_path in sorted(results_dir.rglob("manifest.json")):
+        frames_path = manifest_path.parent / "frames.ndjson"
+        if not frames_path.exists():
+            continue
+        try:
+            import json
+
+            manifest = json.loads(manifest_path.read_text())
+            if not isinstance(manifest, dict):
+                raise ValueError("manifest.json must contain a JSON object")
+            report = verify_bundle(frames_path, manifest)
+        except (OSError, ValueError, TypeError, KeyError) as exc:
+            report = {
+                "ok": False,
+                "error_kind": type(exc).__name__,
+                "detail": str(exc),
+            }
+        bundles.append({
+            "bundle": str(manifest_path.parent),
+            **report,
+        })
+    failures = [row["bundle"] for row in bundles if not row.get("ok")]
+    return {
+        "ok": bool(bundles) and not failures,
+        "results_dir": str(results_dir),
+        "bundles_discovered": len(bundles),
+        "bundles_verified": len(bundles) - len(failures),
+        "failures": failures,
+        "bundles": bundles,
+    }

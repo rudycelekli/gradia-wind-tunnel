@@ -22,3 +22,7 @@ paper/figures/_mermaid/
 paper/_pp.json
 paper/_header.tex
 paper/*.tmp.md
+
+# rendered artifacts (canonical paper PDF is the Zenodo DOI; regenerate via paper/build_pdfs.py)
+paper/*.pdf
+*.log

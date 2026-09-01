@@ -34,7 +34,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .swebench_attacks import (ATTACKS, GRADERS, SWECase, a_gold_fix, a_no_op,
-                               is_exploit, oracle_resolved, weak_pass)
+                               oracle_resolved, weak_pass)
 from .windtunnel import Episode, _sha
 
 DATASET = "SWE-bench/SWE-bench_Verified"
@@ -321,7 +321,8 @@ def load_live_cases(limit: int = 3, *, stratified: bool = False,
         for v in by_repo.values():
             rng.shuffle(v)
         repos = sorted(by_repo)
-        chosen, idx = [], 0
+        chosen: list[dict[str, Any]] = []
+        idx = 0
         while len(chosen) < limit and any(by_repo[rp] for rp in repos):
             rp = repos[idx % len(repos)]
             idx += 1
@@ -358,12 +359,12 @@ def _finalize_swe_bundle(run_id, out, cases_done, episodes, observations, agree,
     from .canonical import write_canonical
 
     # --- per-instance control audit (every instance, not just the last) ---
-    by_inst = _dd(dict)
+    by_inst: dict[str, dict[str, dict[str, Any]]] = _dd(dict)
     for o in observations:
         if o["attack"] in ("gold_fix", "no_op"):
             by_inst[o["instance_id"]][o["attack"]] = o
-    clean_instances: list = []
-    dirty_instances: dict = {}
+    clean_instances: list[str] = []
+    dirty_instances: dict[str, list[str]] = {}
     if with_controls:
         for iid, cs in by_inst.items():
             reasons = []

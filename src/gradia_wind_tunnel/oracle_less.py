@@ -21,11 +21,10 @@ Regime-2 instrument; its hypotheses (H6/H7) are preregistered like Regime 1.
 
 from __future__ import annotations
 
-import math
 import random
 import re
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 _EPS = 1e-9
 
@@ -216,13 +215,17 @@ def run_regime2(run_id: str, bench, items, judge, *, judge_bank: list | None = N
     for idx, item in enumerate(items):
         if _spent() > max_cost_usd:
             break
-        answer = getattr(item, "correct_answer_text", None) or getattr(item, "question", "")
-        question = getattr(item, "question", "")
+        answer = str(
+            getattr(item, "correct_answer_text", None)
+            or getattr(item, "question", "")
+            or ""
+        )
+        question = str(getattr(item, "question", "") or "")
         au = audit_item(judge, answer, question, seed=seed + idx)
         au["item_id"] = getattr(item, "item_id", f"item-{idx}")
         audits.append(au)
         if judge_bank:
-            n_pass = sum(1 if _score(j, answer, question)[0] else 0 for j in judge_bank)
+            n_pass = len([j for j in judge_bank if _score(j, answer, question)[0]])
             kappa_counts.append([n_pass, len(judge_bank) - n_pass])
 
     n = max(1, len(audits))

@@ -16,7 +16,7 @@ else — the version no static benchmark can do.
 from __future__ import annotations
 
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from itertools import combinations
 
 from .items import Item, generate_item, oracle

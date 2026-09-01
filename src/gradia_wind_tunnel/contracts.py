@@ -8,7 +8,7 @@ rest of the program).
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Literal
 
 # --- frozen component versions (hashed into the prereg) --------------------

@@ -23,7 +23,7 @@ from __future__ import annotations
 import random
 import re
 from dataclasses import dataclass, field
-from typing import Protocol
+from typing import Any, Protocol
 
 from .transforms import Attack, FAVORED_PHRASES
 from .windtunnel import Episode, _sha
@@ -36,7 +36,7 @@ class GradedItem:
     question: str
     correct_answer_text: str
     factors: dict = field(default_factory=dict)
-    gold: object = None                 # numeric | boxed-string | letter
+    gold: Any = None                    # numeric | boxed-string | letter
     choices: tuple[str, ...] = ()       # MCQ
     test_program: str = ""              # code
     entry_point: str = ""               # code
@@ -248,7 +248,7 @@ class CodeBenchmark:
                 f"he-sample-{i}", f"def add{i}(a, b):\n    '''return a+b'''\n",
                 f"def add{i}(a, b):\n    return a + b\n",
                 {"observational": True}, gold="tests",
-                test_program=f"def check(f):\n    assert f(2,3)==5\n    assert f(0,0)==0",
+                test_program="def check(f):\n    assert f(2,3)==5\n    assert f(0,0)==0",
                 entry_point=f"add{i}"))
         return out
 
@@ -511,6 +511,8 @@ def run_benchmark_l2(bench: Benchmark, items: list[GradedItem], judge, seed: int
             if ep.is_exploit:
                 found = ep
                 break
-        if found or last:
-            episodes.append(found or last)
+        if found is not None:
+            episodes.append(found)
+        elif last is not None:
+            episodes.append(last)
     return episodes

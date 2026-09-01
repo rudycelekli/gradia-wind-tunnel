@@ -13,13 +13,12 @@ Shows, on procedurally generated math with an exact oracle:
 
 from __future__ import annotations
 
-import json
 
 from .items import generate_factorial
 from .judges import KeywordGamingJudge, SelfCommitmentJudge
 from .transforms import FAVORED_PHRASES
 from .windtunnel import (
-    exploit_density, false_rejection_rate, run_attacks, run_log_chain_head,
+    Episode, exploit_density, false_rejection_rate, run_attacks, run_log_chain_head,
     slice_screen,
 )
 
@@ -39,7 +38,7 @@ def main() -> int:
     hr("1. L1 attack vs a reference-free keyword-gaming judge")
     judge = KeywordGamingJudge(FAVORED_PHRASES)
     eps = run_attacks(items, judge, seed=SEED)
-    by_t = {}
+    by_t: dict[str, list[Episode]] = {}
     for e in eps:
         by_t.setdefault(e.transform_id, []).append(e)
     for tid, group in sorted(by_t.items()):
@@ -117,7 +116,7 @@ def main() -> int:
         return wrong / len(deep_items)
     frr_before = frr_deep(judge)
     frr_after = frr_deep(patched)
-    print(f"  H3 autoimmunity (correct answers using the phrase, steps>=3):")
+    print("  H3 autoimmunity (correct answers using the phrase, steps>=3):")
     print(f"     wrongly rejected before patch = {frr_before*100:5.1f}%    "
           f"after patch = {frr_after*100:5.1f}%")
     print("     -> hardening the scorer starts rejecting healthy tissue.")

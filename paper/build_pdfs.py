@@ -2,14 +2,33 @@
 """Render the Wind Tunnel paper to PDF (mermaid → PNG, then pandoc→xelatex).
 Builds the Zenodo/DOI (non-anon) PDF and the TMLR (anon) PDF. Run from paper/.
 """
-import re, subprocess, sys, os, hashlib
+import hashlib, json, os, re, shutil, subprocess, sys
 from pathlib import Path
 
 PAPER = Path(__file__).resolve().parent
 MMD_DIR = PAPER / "figures" / "_mermaid"; MMD_DIR.mkdir(parents=True, exist_ok=True)
 PP = PAPER / "_pp.json"
-PP.write_text('{"executablePath":"/opt/pw-browsers/chromium-1194/chrome-linux/chrome",'
-              '"args":["--no-sandbox","--disable-gpu","--disable-dev-shm-usage"]}')
+
+
+def preflight():
+    PP.unlink(missing_ok=True)
+    missing = [tool for tool in ("mmdc", "pandoc", "xelatex") if shutil.which(tool) is None]
+    if missing:
+        raise SystemExit(
+            "paper build dependencies missing: " + ", ".join(missing) + "\n"
+            "See paper/BUILD.md. The canonical rendered PDF remains available at "
+            "https://doi.org/10.5281/zenodo.22233638"
+        )
+
+    chromium = os.environ.get("WIND_TUNNEL_CHROMIUM_PATH")
+    if chromium:
+        chrome_path = Path(chromium).expanduser().resolve()
+        if not chrome_path.is_file():
+            raise SystemExit(f"WIND_TUNNEL_CHROMIUM_PATH is not a file: {chrome_path}")
+        PP.write_text(json.dumps({
+            "executablePath": str(chrome_path),
+            "args": ["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage"],
+        }))
 HDR = PAPER / "_header.tex"
 HDR.write_text(
     "\\usepackage[export]{adjustbox}\n"
@@ -33,8 +52,10 @@ def render_mermaid(md_text, tag):
         png = MMD_DIR / f"m_{tag}_{i}_{h}.png"
         mmd.write_text(code)
         if not png.exists():
-            r = subprocess.run(["mmdc","-i",str(mmd),"-o",str(png),"-b","white",
-                                "-w","1600","-p",str(PP)],
+            command = ["mmdc", "-i", str(mmd), "-o", str(png), "-b", "white", "-w", "1600"]
+            if PP.exists():
+                command.extend(["-p", str(PP)])
+            r = subprocess.run(command,
                                capture_output=True, text=True, timeout=180)
             if not png.exists():
                 print("  mermaid FAIL", i, r.stderr[-300:]); continue
@@ -45,7 +66,10 @@ def render_mermaid(md_text, tag):
 
 def unicode_safe(t):
     # a couple of glyphs DejaVu Serif lacks; keep the meaning
-    return t.replace("𝟙", "1")
+    t = t.replace("𝟙", "1")
+    # keep the byline date as one unbreakable unit (no orphaned day digit on wrap)
+    t = t.replace("September 1, 2026", "September 1, 2026")
+    return t
 
 def build(src_name, out_name, title_suffix):
     src = PAPER / src_name
@@ -74,6 +98,7 @@ def build(src_name, out_name, title_suffix):
     return ok
 
 if __name__ == "__main__":
+    preflight()
     a = build("WIND-TUNNEL-PAPER-FULL.md", "WIND-TUNNEL-PAPER-Zenodo.pdf", "")
     b = build("WIND-TUNNEL-PAPER-TMLR-anon.md", "WIND-TUNNEL-PAPER-TMLR-anon.pdf", " (anon)")
     sys.exit(0 if (a and b) else 1)

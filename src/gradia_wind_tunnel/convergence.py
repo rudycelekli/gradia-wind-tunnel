@@ -9,7 +9,6 @@ patch-generalization γ per cycle. This is the measurement no prior work reports
 
 from __future__ import annotations
 
-import random
 from dataclasses import dataclass, field
 
 from .items import Item

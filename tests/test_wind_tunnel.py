@@ -40,3 +40,41 @@ def test_procedural_math_adapter_oracle_is_honest():
     a = build_adapter("gsm8k")
     items = a.items(seed=1, per_cell=2)
     assert items and all(a.oracle(it.correct_answer(), it) for it in items)
+
+
+def test_release_verifier_requires_every_bundle_to_pass(tmp_path):
+    from gradia_wind_tunnel.canonical import write_canonical
+    from gradia_wind_tunnel.capture import build_manifest, verify_bundle_tree, write_frames
+    from gradia_wind_tunnel.windtunnel import Episode
+
+    episode = Episode(
+        rung="L1",
+        item_id="item-1",
+        transform_id="wrong-answer",
+        factors={"benchmark_id": "fixture"},
+        favored_phrase=None,
+        oracle_wrong=True,
+        judge_pass=True,
+        judge_score=1.0,
+        is_exploit=True,
+        answer_sha256="a" * 64,
+    )
+    good = tmp_path / "good"
+    head = write_frames(good / "frames.ndjson", [episode])
+    manifest = build_manifest(
+        {"run_id": "fixture", "benchmark_id": "fixture"},
+        [episode],
+        head,
+    )
+    write_canonical(good / "manifest.json", manifest)
+    assert verify_bundle_tree(tmp_path)["ok"] is True
+
+    bad = tmp_path / "bad"
+    bad.mkdir()
+    (bad / "frames.ndjson").write_text((good / "frames.ndjson").read_text())
+    tampered = dict(manifest)
+    tampered["totals"] = {**manifest["totals"], "exploits": 0}
+    write_canonical(bad / "manifest.json", tampered)
+    report = verify_bundle_tree(tmp_path)
+    assert report["ok"] is False
+    assert report["failures"] == [str(bad)]

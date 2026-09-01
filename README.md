@@ -1,5 +1,8 @@
 # Gradia Wind Tunnel — an evaluation immune system
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22233638.svg)](https://doi.org/10.5281/zenodo.22233638)
+[![Verify](https://github.com/rudycelekli/gradia-wind-tunnel/actions/workflows/verify.yml/badge.svg)](https://github.com/rudycelekli/gradia-wind-tunnel/actions/workflows/verify.yml)
+
 > **One idea:** an evaluation should prove its own validity before any score counts.
 > This is the tool that stress-tests the last untrusted component — **the scorekeeper**.
 
@@ -34,14 +37,18 @@ backstop.
 make test    # 165 property/control tests, all green
 make demo    # narrated walkthrough of the whole loop
 make run     # run the FULL study; writes a self-verifying report to results/
+make verify-release  # replay every committed Proof Pack; one failure fails the release
 gradia-wind-tunnel verify-bundle results/offline-math  # no account or API key
+gradia-wind-tunnel verify-bundle results/swe-merged    # recompute the LIVE SWE-bench study
+gradia-wind-tunnel index                               # recompute the Scorer Gameability Index (+ CIs)
 ```
 
 `make run` executes the entire pipeline end-to-end — the four threat rungs
 (L0 natural incidence → L3 patch-aware), causal-slice localization with
 prospective validation, the K-cycle convergence loop, the hash-committed
 regression vault, and the analyst extras — and emits one canonical, self-digested
-report whose evidence chain head anyone recomputes with `verify-report`. Each
+report whose evidence chain head anyone recomputes with `verify-report`. The repository ships the committed evidence bundles for every headline table, so an
+outsider recomputes the published numbers from raw receipts — no account, no API key. Each
 frames/manifest Proof Pack can also be checked offline with `verify-bundle`,
 which independently recomputes its chain, attempt/exploit/cost totals, every
 reported slice, magnitude histogram and manifest digest. On the
@@ -89,10 +96,11 @@ that scopes exactly what the study may and may not claim.
 | MATH | math | numeric equality | competition math; more frontier than GSM8K |
 | GPQA-Diamond | mcq | key match | graduate-level, "Google-proof"; current frontier reasoning |
 | HumanEval | code | unit tests | classic code anchor |
+| HLE (checkable subset) | knowledge | key / string match | Humanity's Last Exam — the frontier knowledge exam; the highest-leaking scorer in the slate |
 | SWE-bench Verified | code | unit tests | frontier agentic coding — with a *documented test-gaming precedent* |
 
-Phase 0 wires the procedural-math adapter concretely; the frontier adapters are
-declared behind one interface (`benchmarks.py`) and pinned at freeze.
+All five machine-checkable adapters are wired and run under the frozen
+preregistration, each declared behind one interface (`benchmarks.py`) and pinned at freeze.
 
 ## How it works (seven services, every arrow a Guard receipt)
 
@@ -110,17 +118,27 @@ Generator → Adversary → Oracle → Judge Bank → Analyst → Patcher → Re
 - **Patcher** — rubric-edit / judge-architecture / curriculum-retrain, guarded by autoimmunity.
 - **Regression Vault** — hash-committed hidden suite; revealed at publication.
 
-Design and full method: [`docs/`](docs/) and the paper draft in [`paper/`](paper/).
+## Paper and citable record
+
+- **Canonical paper:** [Zenodo record and PDF](https://doi.org/10.5281/zenodo.22233638)
+- **Branded source:** [`paper/WIND-TUNNEL-PAPER-FULL.md`](paper/WIND-TUNNEL-PAPER-FULL.md)
+- **Double-blind source:** [`paper/WIND-TUNNEL-PAPER-TMLR-anon.md`](paper/WIND-TUNNEL-PAPER-TMLR-anon.md)
+- **Citation metadata:** [`CITATION.cff`](CITATION.cff)
+- **Exact release gates:** [`docs/RELEASE-EVIDENCE.md`](docs/RELEASE-EVIDENCE.md)
+- **Method and release boundary:** [`docs/`](docs/)
+
+The DOI record is the canonical rendered publication. Generated PDFs are not tracked
+twice in Git; `python paper/build_pdfs.py` rebuilds both editions from the public sources.
 
 ## Status
 
-Public research beta. The **implemented methodology is green (165 tests)**:
+Published study — Zenodo DOI [10.5281/zenodo.22233638](https://doi.org/10.5281/zenodo.22233638); manuscript under submission at TMLR. The **scientific core is green (165 property/control tests)**, and the release verifier replays every committed Proof Pack rather than a selected example:
 all four services plus the causal localizer, the three-modality patcher, the
 convergence loop, the hash-committed vault, and the analyst extras, driven by a
 one-command orchestrator that emits a self-verifying report. Real model-judge
-attacks have run across public benchmark families. The current live SWE edition
-retains 14 clean instances and 252 grader-level attempts, with 12 witnessed
-exploits (47.6/1,000); one control-dirty instance is excluded rather than counted.
+attacks have run across public benchmark families. The live SWE-bench Verified edition covers 100 control-clean instances and 1,800
+grader-level attempts, with 89 witnessed exploits (49.4/1,000); one control-dirty
+instance is excluded rather than counted.
 These are evaluation-metrology findings, not evidence that a training intervention
 improves a frontier model. `program-readiness` emits the exact live/offline/wired/
 designed boundary and refuses training-dispatch claims.

@@ -12,7 +12,6 @@ disagreement-geometry detector.
 from __future__ import annotations
 
 import random
-from dataclasses import dataclass
 
 from .items import Item, oracle
 from .judges import Judge

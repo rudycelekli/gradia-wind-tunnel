@@ -13,6 +13,7 @@ from __future__ import annotations
 import csv
 import random
 from collections import defaultdict
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -50,8 +51,8 @@ def sample_exploit_answers(benchmark_ids, *, n_per_benchmark: int = 15,
     return out
 
 
-def screen_baseline(samples) -> dict[str, Any]:
-    by = defaultdict(lambda: [0, 0])
+def screen_baseline(samples: Iterable[dict[str, Any]]) -> dict[str, Any]:
+    by: dict[str, list[int]] = defaultdict(lambda: [0, 0])
     tot = [0, 0]
     for s in samples:
         by[s["attack"]][0] += 1

@@ -80,6 +80,7 @@ for a, b in BLOCKS:
 
 # ---- 3. ordered literal map (longest / most specific first) ----
 REPL = [
+ ("Archived at Zenodo — DOI",      "Public record — citation"),
  ("gradia_universes World engine", "witnessed world-engine"),
  ("gradia_universes.World",        "WorldEngine.World"),
  ("`gradia_universes`",            "`world_engine`"),
@@ -130,13 +131,17 @@ t = re.sub(r"\bgradia\b", "the engine", t, flags=re.I)
 t = re.sub(r"\[?10\.5281/zenodo\.\d+\]?(\(https?://doi\.org/10\.5281/zenodo\.\d+\))?",
            "[citation withheld for review]", t)
 t = t.replace("IrPdpUo7Rz", "[withheld]")
+# strip the identity-bearing code-repository URL (markdown-link or bare form)
+t = re.sub(r"\[?github\.com/rudycelekli/[^\]\s)]*\]?(\(https?://github\.com/rudycelekli/[^)]*\))?",
+           "[repository withheld for review]", t)
+t = re.sub(r"https?://github\.com/rudycelekli/\S*", "[repository withheld for review]", t)
 
 DST.write_text(t)
 
 # ---- 5. self-check: no identifying token may survive ----
 BAD = ["Gradia", "gradia", "Celekli", "Rudy", "Interruptible Universes",
        "Conditionally Approved", "gradiahq", "rudycelekli", "Gradia Guard", " Guard",
-       "zenodo", "IrPdpUo7Rz", "doi.org"]
+       "Zenodo", "zenodo", "IrPdpUo7Rz", "doi.org"]
 leftovers = []
 for tok in BAD:
     for i, line in enumerate(t.splitlines(), 1):

@@ -19,9 +19,8 @@ from .adversary import run_L0, run_L1
 from .benchmarks import build_adapter
 from .canonical import digest
 from .causal import localize, prospective_validate
-from .judges import Judge, KeywordGamingJudge
+from .judges import Judge
 from .llm_judge import LLMJudge, SimulatedGraderProvider
-from .transforms import FAVORED_PHRASES
 from .windtunnel import Episode, exploit_density
 
 

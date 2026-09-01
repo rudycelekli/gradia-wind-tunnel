@@ -1,0 +1,17 @@
+/opt/anaconda3/lib/python3.13/site-packages/nibabel/optpkg.py:104: UserWarning: A NumPy version >=1.23.5 and <2.3.0 is required for this version of SciPy (detected version 2.5.1)
+  pkg = __import__(name, fromlist=fromlist)
+{
+  "path": "results/REST-20260829-222256/regime2-hle",
+  "mode": "LIVE",
+  "benchmark": "hle",
+  "aggregate": {
+    "n_items": 40,
+    "mean_invariance_violation_rate": 0.05,
+    "mean_monotonicity_violation_rate": 0.0375,
+    "verbosity_bias_rate": 0.05,
+    "any_violation_rate": 0.175
+  },
+  "fleiss_kappa_over_bank": 0.1919,
+  "spent_usd": 6.6003,
+  "self_digest_ok": true
+}

@@ -107,8 +107,8 @@ class AnthropicGuardGrader:
                 detail = e.read().decode()[:500]
             except Exception:
                 detail = ""
-            e.msg = f"{e.msg or ''} {detail}".strip()
-            raise
+            message = f"{getattr(e, 'reason', '')} {detail}".strip()
+            raise RuntimeError(f"provider HTTP {e.code}: {message}") from e
 
     def grade(self, question: str, answer: str, rubric: str) -> tuple[str, float]:
         if not self.capability:
@@ -168,7 +168,7 @@ class LLMJudge(Judge):
         text, cost = self.provider.grade(question, answer_text, self.rubric)
         self.total_cost_usd += cost
         m = _VERDICT_RE.search(text)
-        passed = bool(m) and m.group(1).upper() == "PASS"
+        passed = m is not None and m.group(1).upper() == "PASS"
         return Verdict(passed=passed, score=1.0 if passed else 0.0,
                        rationale=text.strip().splitlines()[0] if text.strip() else "no verdict",
                        cost_usd=cost)

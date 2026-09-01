@@ -7,6 +7,7 @@
     gradia-wind-tunnel phase0 [--benchmark gsm8k] [--real] [--live --model M --gateway URL]
     gradia-wind-tunnel suite  [--benchmark gsm8k] [--rung L1|L2] [--real] [--live] [--limit N]
     gradia-wind-tunnel verify-bundle BUNDLE_DIR  # offline frames + aggregate verification
+    gradia-wind-tunnel verify-release [RESULTS_DIR]  # verify every committed Proof Pack
     gradia-wind-tunnel localize --benchmark math [--real] [--live] [--limit N]  # witnessed causal slice
     gradia-wind-tunnel regime2  --benchmark hle  [--real] [--live] [--limit N]  # oracle-LESS audit (no key)
     gradia-wind-tunnel swebench-check                                          # SWE-bench readiness ladder
@@ -110,6 +111,8 @@ def main(argv: list[str] | None = None) -> int:
         return _suite(rest)
     if cmd == "verify-bundle":
         return _verify_bundle(rest)
+    if cmd == "verify-release":
+        return _verify_release(rest)
     if cmd == "localize":
         return _localize(rest)
     if cmd == "regime2":
@@ -161,6 +164,17 @@ def _verify_bundle(argv: list[str]) -> int:
         }
         print(json.dumps(report, indent=2, sort_keys=True))
         return 2
+    print(json.dumps(report, indent=2, sort_keys=True))
+    return 0 if report["ok"] else 1
+
+
+def _verify_release(argv: list[str]) -> int:
+    """Replay every committed Proof Pack; fail if any published bundle drifts."""
+    if len(argv) > 1:
+        raise SystemExit("usage: verify-release [RESULTS_DIR]")
+    from .capture import verify_bundle_tree
+
+    report = verify_bundle_tree(Path(argv[0] if argv else "results"))
     print(json.dumps(report, indent=2, sort_keys=True))
     return 0 if report["ok"] else 1
 

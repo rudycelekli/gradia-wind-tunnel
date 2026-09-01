@@ -1,7 +1,7 @@
 PY ?= python3
 export PYTHONPATH := src
 
-.PHONY: help test demo run prereg prereg-verify lint typecheck all
+.PHONY: help test demo run prereg prereg-verify lint typecheck verify-release all
 
 help:
 	@echo "make test           - run the property/control suite (165 checks)"
@@ -10,6 +10,7 @@ help:
 	@echo "make prereg         - freeze a Phase-0 preregistration into preregistrations/"
 	@echo "make prereg-verify  - recompute a preregistration's self-digest"
 	@echo "make lint typecheck - ruff + mypy (dev extras)"
+	@echo "make verify-release  - replay every committed Proof Pack"
 	@echo "make all            - test + run"
 
 test:
@@ -39,5 +40,8 @@ lint:
 
 typecheck:
 	mypy src/gradia_wind_tunnel
+
+verify-release:
+	$(PY) -m gradia_wind_tunnel.cli verify-release results
 
 all: test run

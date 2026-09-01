@@ -4,12 +4,11 @@ Run:  python paper/make_paper_figures.py   (reads results/*.json, writes paper/f
 Every number is read from the committed result JSONs — nothing is hand-typed, so the figures
 are as recomputable as the tables. Requires matplotlib + numpy.
 """
-import json, os, math
+import json, os
 from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib import font_manager as fm
 from matplotlib.patches import FancyBboxPatch, FancyArrowPatch, Rectangle
 from matplotlib.lines import Line2D
 import numpy as np

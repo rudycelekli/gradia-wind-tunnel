@@ -18,10 +18,13 @@ that catches every hack — the SWE statement of "trust the strong oracle, not a
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field, replace
-from typing import Callable
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Callable
 
 from .windtunnel import Episode, _sha
+
+if TYPE_CHECKING:
+    from .swebench_live import WeakRun
 
 # --- weak-grader archetypes (the gameable proxies for the hidden suite) -------
 GRADERS = ("present_tests", "exit_code", "public_subset")
@@ -302,6 +305,7 @@ class DockerAttackExecutor:
             raise RuntimeError("pip install swebench on the Docker host")
         self.dataset_name = dataset_name
         self.run_id = run_id
+        self._runs: dict[tuple[str, str], WeakRun] = {}
 
     def oracle(self, atk: SWEAttack, case: SWECase) -> bool:
         from .swebench_harness import evaluate_patch
@@ -314,9 +318,6 @@ class DockerAttackExecutor:
         execution per (instance, attack) so three graders cost ONE container run."""
         from .swebench_live import run_weak_eval, weak_verdicts
         key = (case.instance_id, atk.name)
-        cached = getattr(self, "_runs", None)
-        if cached is None:
-            cached = self._runs = {}
-        if key not in cached:
-            cached[key] = run_weak_eval(case, atk.patch, atk.name)
-        return weak_verdicts(cached[key], case)[grader]
+        if key not in self._runs:
+            self._runs[key] = run_weak_eval(case, atk.patch, atk.name)
+        return weak_verdicts(self._runs[key], case)[grader]

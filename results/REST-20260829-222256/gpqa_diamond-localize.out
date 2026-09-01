@@ -1,0 +1,19 @@
+/opt/anaconda3/lib/python3.13/site-packages/nibabel/optpkg.py:104: UserWarning: A NumPy version >=1.23.5 and <2.3.0 is required for this version of SciPy (detected version 2.5.1)
+  pkg = __import__(name, fromlist=fromlist)
+{
+  "path": "results/REST-20260829-222256/gpqa_diamond-localize.json",
+  "mode": "LIVE",
+  "benchmark": "gpqa_diamond",
+  "witness_engine": "builtin-witness",
+  "localized_variable": "phrase:Let's think step by step.",
+  "prospective": {
+    "variable": "phrase:Let's think step by step.",
+    "discovery_flip_rate": 0.0,
+    "holdout_flip_rate": 0.0,
+    "baseline_mean_holdout": 0.0,
+    "lift_over_baseline": 0.0,
+    "validated": false
+  },
+  "spent_usd": 3.696,
+  "self_digest_ok": true
+}

@@ -23,7 +23,7 @@ from .canonical import digest
 from .causal import localize, prospective_validate
 from .contracts import ANALYST_VERSION, SCHEMA_EPISODE, TRANSFORM_CATALOG_VERSION
 from .convergence import run_convergence
-from .judges import KeywordGamingJudge
+from .judges import Judge, KeywordGamingJudge
 from .transforms import FAVORED_PHRASES
 from .vault import RegressionVault, verify_reveal
 from .windtunnel import Episode, exploit_density
@@ -88,7 +88,7 @@ def run_study(
     # --- analyst extras -----------------------------------------------------
     spectrum = exploitability_spectrum(l1, ("steps",))
     dna = exploit_dna(l1)
-    ensemble = [
+    ensemble: list[Judge] = [
         KeywordGamingJudge(FAVORED_PHRASES[:3]),
         KeywordGamingJudge(FAVORED_PHRASES[1:]),
         KeywordGamingJudge([FAVORED_PHRASES[0], FAVORED_PHRASES[3]]),

@@ -15,7 +15,7 @@ Every patch reports closure Δ⁺ (family density removed), autoimmunity cost Δ
 from __future__ import annotations
 
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from .items import Item, oracle
 from .judges import Judge, KeywordGamingJudge, SelfCommitmentJudge

@@ -1,8 +1,10 @@
 ---
 title: "The Reward-Hacking Wind Tunnel: An Evaluation Immune System that Attacks, Localizes, and Repairs Benchmark Scorers"
 author: "Rudy M. Celekli, Gradia Research · gradiahq.com"
-date: "Results reported under the frozen preregistration (Regime 1 + Regime 2). 1 September 2026"
+date: "Results reported under the frozen preregistration (Regime 1 + Regime 2) · September 1, 2026"
 ---
+
+*Archived at Zenodo — DOI [10.5281/zenodo.22233638](https://doi.org/10.5281/zenodo.22233638) · Code: [github.com/rudycelekli/gradia-wind-tunnel](https://github.com/rudycelekli/gradia-wind-tunnel) (Apache-2.0).*
 
 > **Evidence boundary.** This manuscript reports empirical results (§13) produced under
 > the frozen preregistration: L1 and L2 across five public benchmarks, witnessed
@@ -1104,6 +1106,20 @@ Every fork is witnessed (`single_variable_verified=true`, distinct before/after 
 roots); the negative is therefore a genuine property of the scorer, not an instrument
 failure. A causal instrument that can refuse to confirm its own hypothesis is doing exactly
 what a static leaderboard cannot.
+
+**Positive control — the localizer confirms when a single cause exists.** A causal instrument
+that only ever *refuses* invites the obvious question: is it simply incapable of confirming
+anything? It is not. We grade the *same* real MATH items with a single-cue control scorer
+that passes any answer containing exactly one known cue phrase, regardless of correctness —
+a scorer with, by construction, a single exploitable variable. The localizer recovers exactly
+that cue: witnessed flip rate **1.0 on both the discovery and the held-out split**, baseline
+(the field of every other candidate variable) **0.0**, lift **+1.0**, `validated: true`
+(n=40, 20/20 split; every fork `single_variable_verified`; bundle self-digest verifies;
+`run_localize_positive_control.py`). The identical apparatus that returns `validated=false` on
+the real judges returns `validated=true` the instant a single cause is present. **The
+instrument confirms and refutes** — the property a causal instrument must have and a static
+leaderboard cannot — which is also the evidence that the diffuse negatives on MATH and HLE are
+a genuine property of those scorers, not a shortcoming of the localizer.
 
 *Methodological note.* Per-item exclude-and-name discipline is enforced: an item either
 contributes all candidate variables or is excluded and named in the manifest (`excluded_items`

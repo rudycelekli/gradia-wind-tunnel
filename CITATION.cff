@@ -34,6 +34,6 @@ keywords:
   - reproducibility
   - causal identification
 license: Apache-2.0
-# version and doi are filled in at release time (GitHub release -> Zenodo).
-# version: v1.0.0
-# doi: 10.5281/zenodo.XXXXXXXX
+version: v1.0.0
+doi: 10.5281/zenodo.22233638
+date-released: '2026-09-01'

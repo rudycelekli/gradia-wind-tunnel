@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import random
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Callable
 
 from .canonical import digest
@@ -245,13 +245,17 @@ def run_convergence_realjudge(benchmark_id: str, *, real: bool = False, model: s
     from .benchmark_suite import build_benchmark
     from .canonical import write_canonical
     bench = build_benchmark(benchmark_id)
-    items = bench.items(seed=seed, limit=limit) if real_data(benchmark_id, real) else bench.offline_samples(seed=seed)
+    items = (
+        bench.items(seed=seed, limit=limit)
+        if real_data(benchmark_id, real)
+        else getattr(bench, "offline_samples")(seed=seed)
+    )
     gold_by_q = {it.question: it.gold for it in items}
     if real:
         from .llm_judge import AnthropicGuardGrader
         import os as _os
         _gw = gateway or _os.environ.get("GRADIA_GUARD_GATEWAY_URL") or "http://127.0.0.1:8787"
-        provider = AnthropicGuardGrader(model=model, gateway_base_url=_gw)
+        provider: Any = AnthropicGuardGrader(model=model, gateway_base_url=_gw)
         solver = None   # real judge solves for itself under the self-commit rubric
     else:
         provider = RubricAwareSimulatedGrader(solver=lambda q: gold_by_q.get(q))

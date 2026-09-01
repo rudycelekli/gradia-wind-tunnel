@@ -24,12 +24,12 @@ import random
 import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Callable
+from typing import Any
 
 from .canonical import digest
 from .transforms import FAVORED_PHRASES
 from .universe_forks import fork_on_variable, witness_engine_name
-from .windtunnel import Episode, _sha, exploit_density
+from .windtunnel import Episode, _sha
 
 # --- the five weak-checker archetypes (each reads ONE observable field) ------
 CHECKERS = ("file_marker", "no_failures", "exit_zero", "visible_subset", "rubric_log")
@@ -202,7 +202,7 @@ def run_agent_env(run_id: str, *, n_tasks: int = 25, seed: int = 20260829,
     episodes = run_agent_env_l1(tasks, seed)
 
     # witnessed localization: one representative task per checker archetype
-    reps = {}
+    reps: dict[str, EnvTask] = {}
     for t in tasks:
         reps.setdefault(t.checker_kind, t)
     localization = []

@@ -16,7 +16,7 @@ from dataclasses import asdict, dataclass
 
 from .items import Item, oracle
 from .judges import Judge
-from .transforms import TRANSFORMS, FAVORED_PHRASES, check_witness, t_keyword_inflation
+from .transforms import TRANSFORMS, check_witness, t_keyword_inflation
 
 
 @dataclass

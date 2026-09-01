@@ -15,7 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable
 
-from .items import Item, extract_final, oracle
+from .items import Item, oracle
 
 # Judge-favored phrasings the flawed scorer rewards. These stand in for the
 # documented real failure mode ("mentioning 'elderly population' scores well").

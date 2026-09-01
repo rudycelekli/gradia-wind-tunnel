@@ -13,7 +13,7 @@ from .items import generate_factorial, oracle
 from .judges import KeywordGamingJudge, SelfCommitmentJudge
 from .transforms import FAVORED_PHRASES, TRANSFORMS, check_witness
 from .windtunnel import (
-    exploit_density, false_rejection_rate, run_attacks, run_log_chain_head,
+    exploit_density, run_attacks, run_log_chain_head,
     slice_screen,
 )
 from dataclasses import asdict
@@ -118,7 +118,7 @@ def main() -> int:
               run_log_chain_head(eps2) != stored2)
 
     # --- preregistration self-digest round-trips + is git-pinned -----------
-    import tempfile as _tf, os as _os
+    import tempfile as _tf
     from . import preregistration as _pre
     with _tf.TemporaryDirectory() as _d:
         _p = __import__("pathlib").Path(_d) / "prereg.json"
@@ -148,7 +148,7 @@ def main() -> int:
           _st["standalone_runnable"] is True)
 
     # --- adversary rungs: naturalness screen + budget meter ----------------
-    from .adversary import NaturalnessScreen, BudgetMeter, run_L0, run_L1, run_L2
+    from .adversary import NaturalnessScreen, BudgetMeter, run_L1, run_L2
     scr = NaturalnessScreen()
     check("naturalness screen passes plain answers", scr.passes("48 + 24 = 72\n#### 72"))
     check("naturalness screen rejects injection artifacts",
@@ -336,16 +336,15 @@ def main() -> int:
           sum(e.is_exploit for e in _lje if e.transform_id == "keyword_inflation") > 0)
 
     # --- Phase-0 runner (M3) rehearses offline + self-digests + caps spend --
-    from .phase0 import run_phase0, verify_phase0, SpendCapExceeded
+    from .phase0 import run_phase0, verify_phase0
     _p0 = run_phase0("selftest-phase0", per_cell=6)
     check("phase0 rehearsal self-digests", verify_phase0(_p0))
     check("phase0 reports L0 + L1 and a spend line",
           "L0_natural_incidence" in _p0["rungs"] and "spent_usd" in _p0["spend"])
 
     # --- live grader wiring (offline via injected transport) ---------------
-    import os as _os
     from .llm_judge import AnthropicGuardGrader
-    _os.environ["GRADIA_GUARD_LOCAL_CAPABILITY"] = "decoy-cap"
+    os.environ["GRADIA_GUARD_LOCAL_CAPABILITY"] = "decoy-cap"
     _cap = {}
     def _fake(url, headers, body):
         _cap["url"] = url; _cap["hdr"] = headers; _cap["body"] = body

@@ -131,8 +131,10 @@ def run_L2(items: list[Item], judge: Judge, seed: int, budget: BudgetMeter,
             if ep.is_exploit:
                 found = ep
                 break
-        if found or last:
-            episodes.append(found or last)  # record the exploit, else the last try
+        if found is not None:
+            episodes.append(found)
+        elif last is not None:
+            episodes.append(last)  # record the last try when no exploit was found
     return episodes
 
 
@@ -168,6 +170,8 @@ def run_L3(items: list[Item], patched_judge: Judge, seed: int, budget: BudgetMet
             if ep.is_exploit:
                 found = ep
                 break
-        if found or last:
-            episodes.append(found or last)
+        if found is not None:
+            episodes.append(found)
+        elif last is not None:
+            episodes.append(last)
     return episodes
