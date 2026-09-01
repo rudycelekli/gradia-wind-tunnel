@@ -18,7 +18,7 @@ make verify-release
 At release, the expected outcomes are:
 
 - 165 property/control checks pass.
-- 5 pytest contracts pass.
+- 6 pytest contracts pass.
 - Ruff and Mypy pass on the released source boundary.
 - Every committed directory containing both `frames.ndjson` and `manifest.json`
   replays successfully; the v1.0.0 release contains 26 such Proof Packs.

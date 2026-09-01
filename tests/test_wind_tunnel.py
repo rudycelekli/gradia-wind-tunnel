@@ -78,3 +78,30 @@ def test_release_verifier_requires_every_bundle_to_pass(tmp_path):
     report = verify_bundle_tree(tmp_path)
     assert report["ok"] is False
     assert report["failures"] == [str(bad)]
+
+
+def test_cost_total_is_stable_at_a_decimal_half_boundary():
+    from gradia_wind_tunnel.capture import build_manifest
+    from gradia_wind_tunnel.windtunnel import Episode
+
+    def episode(item_id: str, cost_usd: float) -> Episode:
+        return Episode(
+            rung="L2",
+            item_id=item_id,
+            transform_id="fixture",
+            factors={"benchmark_id": "fixture"},
+            favored_phrase=None,
+            oracle_wrong=False,
+            judge_pass=False,
+            judge_score=0.0,
+            is_exploit=False,
+            answer_sha256="b" * 64,
+            cost_usd=cost_usd,
+        )
+
+    manifest = build_manifest(
+        {"run_id": "cost-fixture", "benchmark_id": "fixture"},
+        [episode("one", 2.8714), episode("two", 0.00005)],
+        "c" * 64,
+    )
+    assert manifest["totals"]["total_cost_usd"] == 2.8715

@@ -23,6 +23,7 @@ sink (or any warehouse) ingests directly.
 from __future__ import annotations
 
 from dataclasses import asdict
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -34,6 +35,19 @@ MANIFEST_SCHEMA = "gradia-wind-tunnel-evidence-manifest.v1"
 
 # exploit magnitude bins (judge margin/score on oracle-wrong answers)
 _MAG_BINS = [(0.0, 0.25), (0.25, 0.5), (0.5, 0.75), (0.75, 1.01)]
+
+
+def _total_cost_usd(episodes: Iterable[Episode]) -> float:
+    """Return a version-stable four-decimal cost total.
+
+    Python 3.12 changed ``sum`` for floats to use compensated summation.  That
+    is numerically better, but it means a historical value exactly on a
+    half-cent boundary can round differently across supported interpreters.
+    Evidence replay must be byte-stable, so costs are summed from their
+    canonical decimal spellings and rounded explicitly, half up.
+    """
+    total = sum((Decimal(str(ep.cost_usd)) for ep in episodes), Decimal("0"))
+    return float(total.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP))
 
 
 def write_frames(path: Path, episodes: Iterable[Episode]) -> str:
@@ -80,7 +94,7 @@ def build_manifest(run_meta: dict[str, Any], episodes: list[Episode],
             "attempts": len(eps),
             "exploits": sum(e.is_exploit for e in eps),
             "overall_density_per_1000": round(exploit_density(eps), 1),
-            "total_cost_usd": round(sum(e.cost_usd for e in eps), 4),
+            "total_cost_usd": _total_cost_usd(eps),
         },
         "density_by_rung": _by(eps, lambda e: e.rung),
         "density_by_transform": _by(eps, lambda e: e.transform_id),
@@ -129,7 +143,7 @@ def verify_bundle(frames_path: Path, manifest: dict[str, Any]) -> dict[str, Any]
             "attempts": len(recomputed_eps),
             "exploits": sum(e.is_exploit for e in recomputed_eps),
             "overall_density_per_1000": round(exploit_density(recomputed_eps), 1),
-            "total_cost_usd": round(sum(e.cost_usd for e in recomputed_eps), 4),
+            "total_cost_usd": _total_cost_usd(recomputed_eps),
         },
         "density_by_rung": _by(recomputed_eps, lambda e: e.rung),
         "density_by_transform": _by(recomputed_eps, lambda e: e.transform_id),
