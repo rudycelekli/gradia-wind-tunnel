@@ -1,0 +1,39 @@
+cff-version: 1.2.0
+title: >-
+  The Reward-Hacking Wind Tunnel: An Evaluation Immune System
+  that Attacks, Localizes, and Repairs Benchmark Scorers
+message: >-
+  If you use this software or its results, please cite it using
+  the metadata below.
+type: software
+authors:
+  - given-names: Rudy
+    family-names: Celekli
+    email: rudycelekli@gmail.com
+    affiliation: Gradia Research
+repository-code: 'https://github.com/rudycelekli/gradia-wind-tunnel'
+url: 'https://gradiahq.com'
+abstract: >-
+  The Reward-Hacking Wind Tunnel is an instrument that stress-tests the
+  scoring pipelines behind public AI benchmarks. It searches for answers a
+  benchmark's scorer grades correct that a machine oracle proves wrong (an
+  exploit is judge-PASS AND oracle-WRONG, confirmed with no human label),
+  localizes the exploited variable with witnessed single-variable forks, and
+  measures whether iterated patching of the scorer converges, plateaus, or
+  merely relocates the flaw. It publishes a living, content-addressed Scorer
+  Gameability Index, audits in two regimes (oracle-backed and oracle-less
+  judge-scored), and anchors its evidence in public timestamp logs. Every
+  reported number recomputes offline from a hash-chained evidence bundle.
+keywords:
+  - AI evaluation
+  - reward hacking
+  - benchmark integrity
+  - LLM-as-judge
+  - scorer gameability
+  - evaluation auditing
+  - reproducibility
+  - causal identification
+license: Apache-2.0
+# version and doi are filled in at release time (GitHub release -> Zenodo).
+# version: v1.0.0
+# doi: 10.5281/zenodo.XXXXXXXX
