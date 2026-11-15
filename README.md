@@ -19,6 +19,8 @@ ground truth is a machine oracle (exact-answer math, execution-checked code, ver
 multiple-choice). The scorer is the attack surface; the oracle is the ground-truth
 backstop.
 
+The [engineering case study](https://rudycelekli.github.io/engineering/repositories/rudycelekli/gradia-wind-tunnel.html) describes the independent oracle and the scope of the replay evidence.
+
 ## The program this belongs to
 
 | Pillar | Proves | Repo |
